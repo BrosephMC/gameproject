@@ -12,6 +12,14 @@ const frontEndProjectiles = {}
 
 const socket = io();
 
+socket.on('connect', () => {
+    socket.emit('initCanvas', {
+        width: canvas.width, 
+        height: canvas.height,
+        devicePixelRatio
+    })
+})
+
 // receive update from server
 socket.on('updateProjectiles', (backEndProjectiles) => {
     for (const id in backEndProjectiles) {
@@ -28,11 +36,13 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
         } else {
             frontEndProjectiles[id].x += backEndProjectiles[id].velocity.x
             frontEndProjectiles[id].y += backEndProjectiles[id].velocity.y
+        }
+    }
 
-            //temp cleanup
-            // if(backEndProjectile.x > 100 || backEndProjectile.x < 0 || backEndProjectile.y > 100 || backEndProjectile.y < 0) {
-            //     delete backEndProjectiles[id]
-            // }
+    // if backend player cannot be found, delete front end player
+    for (const id in frontEndProjectiles) {
+        if(!backEndProjectiles[id]) {
+            delete frontEndProjectiles[id]
         }
     }
 })
