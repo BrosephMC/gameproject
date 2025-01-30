@@ -7,12 +7,35 @@ const devicePixelRatio = window.devicePixelRatio || 1
 canvas.width = innerWidth * devicePixelRatio
 canvas.height = innerHeight * devicePixelRatio
 
-// const x = canvas.width / 2
-// const y = canvas.height / 2
-// const player = new Player(x, y, 10, 'blue')
 const frontEndPlayers = {}
+const frontEndProjectiles = {}
 
 const socket = io();
+
+// receive update from server
+socket.on('updateProjectiles', (backEndProjectiles) => {
+    for (const id in backEndProjectiles) {
+        const backEndProjectile = backEndProjectiles[id]
+
+        if (!frontEndProjectiles[id]) {
+            frontEndProjectiles[id] = new Projectile({
+                x: backEndProjectile.x, 
+                y: backEndProjectile.y, 
+                radius: 5, 
+                color: frontEndPlayers[backEndProjectile.playerId]?.color, 
+                velocity: backEndProjectile.velocity
+            })
+        } else {
+            frontEndProjectiles[id].x += backEndProjectiles[id].velocity.x
+            frontEndProjectiles[id].y += backEndProjectiles[id].velocity.y
+
+            //temp cleanup
+            // if(backEndProjectile.x > 100 || backEndProjectile.x < 0 || backEndProjectile.y > 100 || backEndProjectile.y < 0) {
+            //     delete backEndProjectiles[id]
+            // }
+        }
+    }
+})
 
 // receive update from server
 socket.on('updatePlayers', (backEndPlayers) => {
@@ -79,6 +102,16 @@ function animate() {
         const frontEndPlayer = frontEndPlayers[id]
         frontEndPlayer.draw()
     }
+
+    for(const id in frontEndProjectiles) {
+        const frontEndProjectile = frontEndProjectiles[id]
+        frontEndProjectile.draw()
+    }
+
+    // for(let i = frontEndProjectiles.length - 1; i >= 0; i--) {
+    //     const frontEndProjectile = frontEndProjectiles[i]
+    //     frontEndProjectile.update()
+    // }
 }
 
 animate()
