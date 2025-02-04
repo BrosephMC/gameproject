@@ -25,29 +25,8 @@ let projectileId = 0
 // when user connects
 io.on('connection', (socket) => {
     console.log('a user connected')
-    backEndPlayers[socket.id] = {
-        x: 500 * Math.random(),
-        y: 500 * Math.random(),
-        color: `hsl(${360 * Math.random()}, 100%, 50%)`,
-        sequenceNumber: 0
-    }
 
     io.emit('updatePlayers', backEndPlayers)
-
-    socket.on('initCanvas', ({width, height, devicePixelRatio}) => {
-        backEndPlayers[socket.id].canvas = {
-            width,
-            height
-        }
-
-        backEndPlayers[socket.id].radius = RADIUS
-        // backEndPlayers[socket.id].radius = devicePixelRatio * RADIUS
-        // console.log("devicePixelRatio " + devicePixelRatio)
-
-        // if (devicePixelRatio > 1) {
-        //     backEndPlayers[socket.id].radius = 2 * RADIUS
-        // }
-    })
 
     socket.on('shoot', ({x, y, angle}) => {
         projectileId++
@@ -63,6 +42,31 @@ io.on('connection', (socket) => {
             velocity,
             playerId: socket.id
         }
+    })
+
+    socket.on('initGame', ({username, width, height, devicePixelRatio}) => {
+        backEndPlayers[socket.id] = {
+            x: 500 * Math.random(),
+            y: 500 * Math.random(),
+            color: `hsl(${360 * Math.random()}, 100%, 50%)`,
+            sequenceNumber: 0,
+            score: 0,
+            username: username
+        }
+
+        // initCanvas
+        backEndPlayers[socket.id].canvas = {
+            width,
+            height
+        }
+
+        backEndPlayers[socket.id].radius = RADIUS
+        // backEndPlayers[socket.id].radius = devicePixelRatio * RADIUS
+        // console.log("devicePixelRatio " + devicePixelRatio)
+
+        // if (devicePixelRatio > 1) {
+        //     backEndPlayers[socket.id].radius = 2 * RADIUS
+        // }
     })
 
     socket.on('disconnect', (reason) => {
@@ -124,11 +128,15 @@ setInterval(() => {
                 backEndProjectiles[id].y - backEndPlayer.y
             )
 
+            // collision detection
             if (
                 //DISTANCE < backEndProjectiles[id].radius + backEndPlayer[id].radius &&
                 DISTANCE < PROJECTILE_RADIUS + backEndPlayer.radius &&
                 backEndProjectiles[id].playerId !== playerId
             ) {
+                if(backEndPlayers[backEndProjectiles[id].playerId]){
+                    backEndPlayers[backEndProjectiles[id].playerId].score++
+                }
                 delete backEndProjectiles[id]
                 delete backEndPlayers[playerId]
                 break
