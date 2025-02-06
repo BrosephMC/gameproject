@@ -2,10 +2,11 @@ const canvas = document.querySelector('canvas')
 const c = canvas.getContext('2d')
 const scoreEl = document.querySelector('#scoreEl')
 
-
+const CANVAS_WIDTH = 1024
+const CANVAS_HEIGHT = 576
 const devicePixelRatio = window.devicePixelRatio || 1
-canvas.width = 1024 * devicePixelRatio
-canvas.height = 576 * devicePixelRatio
+canvas.width = CANVAS_WIDTH * devicePixelRatio
+canvas.height = CANVAS_HEIGHT * devicePixelRatio
 c.scale(devicePixelRatio, devicePixelRatio)
 
 const frontEndPlayers = {}
@@ -180,6 +181,22 @@ const keys = {
     }
 }
 
+// looking for mouse movement
+let mouseX = CANVAS_WIDTH / 2
+let mouseY = CANVAS_HEIGHT / 2
+
+document.addEventListener("mousemove", (event) => {
+    mouseX = event.clientX;
+    mouseY = event.clientY;
+    // front end rotation test ############
+    const {top, left} = canvas.getBoundingClientRect()
+    frontEndPlayers[socket.id].angle = Math.atan2(
+        (event.clientY - top) - frontEndPlayers[socket.id].y,
+        (event.clientX - left) - frontEndPlayers[socket.id].x
+    )
+});
+
+// key inputs
 const SPEED = 5
 const playerInputs = []
 let sequenceNumber = 0
