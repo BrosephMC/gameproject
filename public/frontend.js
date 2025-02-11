@@ -11,6 +11,7 @@ c.scale(devicePixelRatio, devicePixelRatio)
 
 const frontEndPlayers = {}
 const frontEndProjectiles = {}
+const frontEndItems = {}
 
 const socket = io();
 
@@ -19,6 +20,7 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
     for (const id in backEndProjectiles) {
         const backEndProjectile = backEndProjectiles[id]
 
+        // if new backend projectile does not exist, make front end projectile
         if (!frontEndProjectiles[id]) {
             frontEndProjectiles[id] = new Projectile({
                 x: backEndProjectile.x, 
@@ -33,12 +35,42 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
         }
     }
 
-    // if backend player cannot be found, delete front end player
+    // if backend projectile cannot be found, delete front end projectile
     for (const id in frontEndProjectiles) {
         if(!backEndProjectiles[id]) {
             delete frontEndProjectiles[id]
         }
     }
+})
+
+// receive update from server
+socket.on('updateItems', (backEndItems) => {
+    for (const id in backEndItems) {
+        const backEndItem = backEndItems[id]
+
+        // if new backend item does not exist, make front end item
+        if (!frontEndItems[id]) {
+            frontEndItems[id] = new Item({
+                x: backEndItem.x, 
+                y: backEndItem.y, 
+                // default radius
+                color: backEndItem.color, 
+            })
+        } else {
+            // frontEndItems[id].x += backEndItems[id].velocity.x
+            // frontEndItems[id].y += backEndItems[id].velocity.y
+            frontEndItems[id].x = backEndItem.x
+            frontEndItems[id].y = backEndItem.y
+        }
+    }
+
+    // if backend item cannot be found, delete front end item
+    for (const id in frontEndItems) {
+        if(!backEndItems[id]) {
+            delete frontEndItems[id]
+        }
+    }
+    console.log(frontEndItems)
 })
 
 // receive update from server
@@ -53,7 +85,8 @@ socket.on('updatePlayers', (backEndPlayers) => {
                 y: backEndPlayer.y,
                 radius: 10,
                 color: backEndPlayer.color,
-                username: backEndPlayer.username
+                username: backEndPlayer.username,
+                angle: 0
             })
 
             document.querySelector('#playerLabels').innerHTML += 
@@ -86,39 +119,30 @@ socket.on('updatePlayers', (backEndPlayers) => {
                 y: backEndPlayer.y
             }
 
+            //update player rotation angle
+            frontEndPlayers[id].angle = backEndPlayer.angle
+
+            // if it's the client's own player
             if( id === socket.id){
-                // if player already exists
                 // frontEndPlayers[id].x = backEndPlayer.x
                 // frontEndPlayers[id].y = backEndPlayer.y
     
-                const lastBackendInputIndex = playerInputs.findIndex((input) => {
-                    return backEndPlayer.sequenceNumber === input.sequenceNumber
-                })
+                // const lastBackendInputIndex = playerInputs.findIndex((input) => {
+                //     return backEndPlayer.sequenceNumber === input.sequenceNumber
+                // })
     
-                if(lastBackendInputIndex > -1){
-                    playerInputs.splice(0, lastBackendInputIndex + 1)
-                }
+                // if(lastBackendInputIndex > -1){
+                //     playerInputs.splice(0, lastBackendInputIndex + 1)
+                // }
     
-                playerInputs.forEach((input) => {
-                    frontEndPlayers[id].target.x += input.dx
-                    frontEndPlayers[id].target.y += input.dy
-                })
+                // playerInputs.forEach((input) => {
+                //     frontEndPlayers[id].target.x += input.dx
+                //     frontEndPlayers[id].target.y += input.dy
+                // })
             } 
-            // else {
-            //     // for all other players
-            //     // frontEndPlayers[id].x = backEndPlayer.x
-            //     // frontEndPlayers[id].y = backEndPlayer.y
-
-            //     gsap.to(frontEndPlayers[id], {
-            //         x: backEndPlayer.x,
-            //         y: backEndPlayer.y,
-            //         duration: 0.015,
-            //         // duration: 0.1,
-            //         ease: 'linear'
-            //     })
-            // }
         }
     }
+
     // if backend player cannot be found, delete front end player
     for (const id in frontEndPlayers) {
         if(!backEndPlayers[id]) {
@@ -132,7 +156,6 @@ socket.on('updatePlayers', (backEndPlayers) => {
             delete frontEndPlayers[id]
         }
     }
-    // console.log(frontEndPlayers)
 })
 
 let animationId
@@ -158,121 +181,13 @@ function animate() {
         frontEndProjectile.draw()
     }
 
-    // for(let i = frontEndProjectiles.length - 1; i >= 0; i--) {
-    //     const frontEndProjectile = frontEndProjectiles[i]
-    //     frontEndProjectile.update()
-    // }
+    for(const id in frontEndItems) {
+        const frontEndItem = frontEndItems[id]
+        frontEndItem.draw()
+    }
 }
 
 animate()
-
-const keys = {
-    w: {
-        pressed: false
-    },
-    a: {
-        pressed: false
-    },
-    s: {
-        pressed: false
-    },
-    d: {
-        pressed: false
-    }
-}
-
-// looking for mouse movement
-let mouseX = CANVAS_WIDTH / 2
-let mouseY = CANVAS_HEIGHT / 2
-
-document.addEventListener("mousemove", (event) => {
-    mouseX = event.clientX;
-    mouseY = event.clientY;
-    // front end rotation test ############
-    const {top, left} = canvas.getBoundingClientRect()
-    frontEndPlayers[socket.id].angle = Math.atan2(
-        (event.clientY - top) - frontEndPlayers[socket.id].y,
-        (event.clientX - left) - frontEndPlayers[socket.id].x
-    )
-});
-
-// key inputs
-const SPEED = 5
-const playerInputs = []
-let sequenceNumber = 0
-setInterval(() => {
-    if(keys.w.pressed) {
-        sequenceNumber++
-        playerInputs.push({sequenceNumber: sequenceNumber, dx: 0, dy: -SPEED})
-        frontEndPlayers[socket.id].y -= SPEED // client-side prediction
-        socket.emit('keydown', {keycode: 'KeyW', sequenceNumber})
-    }
-
-    if(keys.a.pressed) {
-        sequenceNumber++
-        playerInputs.push({sequenceNumber: sequenceNumber, dx: -SPEED, dy: 0})
-        frontEndPlayers[socket.id].x -= SPEED // client-side prediction
-        socket.emit('keydown', {keycode: 'KeyA', sequenceNumber})
-    }
-
-    if(keys.s.pressed) {
-        sequenceNumber++
-        playerInputs.push({sequenceNumber: sequenceNumber, dx: 0, dy: SPEED})
-        frontEndPlayers[socket.id].y += SPEED // client-side prediction
-        socket.emit('keydown', {keycode: 'KeyS', sequenceNumber})
-    }
-
-    if(keys.d.pressed) {
-        sequenceNumber++
-        playerInputs.push({sequenceNumber: sequenceNumber, dx: SPEED, dy: 0})
-        frontEndPlayers[socket.id].x += SPEED // client-side prediction
-        socket.emit('keydown', {keycode: 'KeyD', sequenceNumber})
-    }
-}, 15)
-
-window.addEventListener('keydown', (event) => {
-    if(!frontEndPlayers[socket.id]) return
-
-    switch(event.code) {
-        case 'KeyW':
-            keys.w.pressed = true
-            break
-
-        case 'KeyA':
-            keys.a.pressed = true
-            break
-
-        case 'KeyS': 
-            keys.s.pressed = true
-            break
-
-        case 'KeyD':
-            keys.d.pressed = true
-            break
-    }
-})
-
-window.addEventListener('keyup', (event) => {
-    if(!frontEndPlayers[socket.id]) return
-
-    switch(event.code) {
-        case 'KeyW':
-            keys.w.pressed = false
-            break
-
-        case 'KeyA':
-            keys.a.pressed = false
-            break
-
-        case 'KeyS': 
-            keys.s.pressed = false
-            break
-
-        case 'KeyD':
-            keys.d.pressed = false
-            break
-    }
-})
 
 document.querySelector('#usernameForm').addEventListener('submit', (event) => {
     event.preventDefault()
@@ -284,3 +199,43 @@ document.querySelector('#usernameForm').addEventListener('submit', (event) => {
     }
     )
 })
+
+addEventListener('click', (event) => {
+    const {top, left} = canvas.getBoundingClientRect()
+    if(!frontEndPlayers[socket.id]) return
+
+    const playerPosition = {
+        x: frontEndPlayers[socket.id].x,
+        y: frontEndPlayers[socket.id].y
+    }
+    const angle = Math.atan2(
+        (event.clientY - top) - playerPosition.y,
+        (event.clientX - left) - playerPosition.x
+    )
+    socket.emit('shoot', {
+        x: playerPosition.x,
+        y: playerPosition.y,
+        angle
+    })
+})
+
+// looking for mouse movement
+let mouseX = CANVAS_WIDTH / 2
+let mouseY = CANVAS_HEIGHT / 2
+
+document.addEventListener("mousemove", (event) => {
+    if(!frontEndPlayers[socket.id]) return
+    
+    const {top, left} = canvas.getBoundingClientRect()
+    mouseX = event.clientX - left;
+    mouseY = event.clientY - top;
+
+    //angle rotation is client-side
+    const angle = Math.atan2(
+        mouseY - frontEndPlayers[socket.id].y,
+        mouseX - frontEndPlayers[socket.id].x
+    )
+    frontEndPlayers[socket.id].angle = angle
+
+    socket.emit('moveMouse', {angle, mouseX, mouseY})
+});
