@@ -22,8 +22,11 @@ const backEndItems = {}
 const SPEED = 5
 const RADIUS = 10
 let projectileId = 0
+let itemId = 0
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
+
+const SPACING = 30
 
 // when user connects
 io.on('connection', (socket) => {
@@ -60,15 +63,19 @@ io.on('connection', (socket) => {
             mouseX: CANVAS_WIDTH / 2,
             mouseY: CANVAS_HEIGHT / 2,
             speed: 3,
-            radius: RADIUS
+            radius: RADIUS,
+            train: {head: null, tail: null, length: 0}
         }
 
-        // spawn one item
-        backEndItems[socket.id] = {
-            x: 1024 * Math.random(),
-            y: 576 * Math.random(),
-            color: 'yellow',
-            radius: 10,
+        // spawn items
+        for(let i = 0; i < 3; i++){
+            backEndItems[itemId++] = {
+                x: 1024 * Math.random(),
+                y: 576 * Math.random(),
+                color: 'yellow',
+                radius: 10,
+                attachedToPlayer: null
+            }
         }
 
         // initCanvas
@@ -102,10 +109,9 @@ function objIsColliding(obj, objList){
 
         if (distance < obj.radius + objList[id].radius) {
             return id
-        } else {
-            return null
         }
     }
+    return null
 }
 
 // backend ticker
@@ -194,10 +200,68 @@ setInterval(() => {
             backEndPlayers[id].y = CANVAS_HEIGHT - backEndPlayers[id].radius
         }
         
+        // Item collision
         colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
-            delete backEndItems[colId]
+            appendItem(id, backEndPlayers[id].train, colId)
+            console.log("collided with " + colId)
         }
+        console.log(backEndPlayers[id].train)
+
+        // update item train movement
+        // MAKE CODE BETTER **************************************************
+        for(itemId in backEndPlayers[id].train){
+            if(backEndPlayers[id].train.head == null) {
+                continue
+            }
+
+            let headId = backEndPlayers[id].train.head;
+            let headItem = backEndItems[headId];
+
+            if (headItem) {
+                // Calculate direction from head to player
+                let dx = backEndPlayers[id].x - headItem.x;
+                let dy = backEndPlayers[id].y - headItem.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > SPACING) {
+                    let angle = Math.atan2(dy, dx);
+                    headItem.x += Math.cos(angle) * (distance - SPACING);
+                    headItem.y += Math.sin(angle) * (distance - SPACING);
+                }
+            }
+
+            // Move the rest of the train
+            let prevId = headId;
+            let prevX = headItem.x;
+            let prevY = headItem.y;
+
+            while (prevId !== null) {
+                let current = backEndPlayers[id].train[prevId];
+                let nextId = current.next;
+
+                if (nextId !== null) {
+                    let item = backEndItems[nextId];
+
+                    // Move towards the previous train segment while maintaining spacing
+                    let dx = prevX - item.x;
+                    let dy = prevY - item.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance > SPACING) {
+                        let angle = Math.atan2(dy, dx);
+                        item.x += Math.cos(angle) * (distance - SPACING);
+                        item.y += Math.sin(angle) * (distance - SPACING);
+                    }
+
+                    prevX = item.x;
+                    prevY = item.y;
+                }
+
+                prevId = nextId;
+            }
+        }
+
     }
 
     io.emit('updateProjectiles', backEndProjectiles)
@@ -209,3 +273,35 @@ setInterval(() => {
 server.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
 })
+
+
+// ***** Train Object *******
+
+function appendItem(playerId, train, itemId) {
+    if(backEndItems[itemId].attachedToPlayer == playerId) return
+    if(train.head == null || train.tail == null){
+        train[itemId] = {
+            next: null,
+            previous: null
+        }
+        train.head = itemId
+        train.tail = itemId
+    } else {
+        train[colId] = {
+            next: null,
+            previous: train.tail
+        }
+        train[train.tail].next = colId
+        train.tail = colId
+    }
+    train.length++
+    backEndItems[itemId].attachedToPlayer = playerId
+}
+
+function popItem(train) {
+    const temp = train.tail
+    train.tail = train[train.tail].previous
+    train[train.tail].next = null
+    delete train[temp]
+    return temp
+}
