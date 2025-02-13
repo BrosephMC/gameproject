@@ -144,7 +144,7 @@ setInterval(() => {
         // Item collision
         const colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
-            appendItem(id, backEndPlayers[id].train, colId)
+            appendItem(id, colId)
             console.log("collided with " + colId)
         }
         console.log(backEndPlayers[id].train)
@@ -219,8 +219,36 @@ server.listen(port, () => {
 
 // ***** Train Object *******
 
-function appendItem(playerId, train, itemId) {
-    if(backEndItems[itemId].attachedToPlayer == playerId) return
+function appendItem(playerId, itemId) {
+    const otherPlayerId = backEndItems[itemId].attachedToPlayer
+    if(otherPlayerId == playerId) return
+    const train = backEndPlayers[playerId].train
+    
+    let nextItem = null
+    if(otherPlayerId != null) {
+        const otherPlayerTrain = backEndPlayers[otherPlayerId].train
+        nextItem = otherPlayerTrain[itemId].next
+
+        //set new tail
+        if(otherPlayerTrain[itemId].previous != null){
+            otherPlayerTrain.tail = otherPlayerTrain[itemId].previous
+            otherPlayerTrain[otherPlayerTrain.tail].next = null
+        }
+
+        // if head item is stolen
+        if(otherPlayerTrain.head == itemId) {
+            otherPlayerTrain.head = null
+            otherPlayerTrain.tail = null
+        }
+
+        if(nextItem) {
+            otherPlayerTrain[nextItem].previous = null
+        }
+
+        delete otherPlayerTrain[itemId]
+        // otherPlayerTrain.length--
+    }
+
     if(train.head == null || train.tail == null){
         train[itemId] = {
             next: null,
@@ -236,8 +264,12 @@ function appendItem(playerId, train, itemId) {
         train[train.tail].next = itemId
         train.tail = itemId
     }
-    train.length++
+    // train.length++
     backEndItems[itemId].attachedToPlayer = playerId
+
+    if(nextItem != null) {
+        appendItem(playerId, nextItem)
+    }  
 }
 
 function popItem(train) {
@@ -245,7 +277,7 @@ function popItem(train) {
     train.tail = train[train.tail].previous
     train[train.tail].next = null
     delete train[temp]
-    train.length--
+    // train.length--
     return temp
 }
 
