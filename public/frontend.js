@@ -10,38 +10,10 @@ canvas.height = CANVAS_HEIGHT * devicePixelRatio
 c.scale(devicePixelRatio, devicePixelRatio)
 
 const frontEndPlayers = {}
-const frontEndProjectiles = {}
+// const frontEndProjectiles = {}
 const frontEndItems = {}
 
 const socket = io();
-
-// receive update from server
-socket.on('updateProjectiles', (backEndProjectiles) => {
-    for (const id in backEndProjectiles) {
-        const backEndProjectile = backEndProjectiles[id]
-
-        // if new backend projectile does not exist, make front end projectile
-        if (!frontEndProjectiles[id]) {
-            frontEndProjectiles[id] = new Projectile({
-                x: backEndProjectile.x, 
-                y: backEndProjectile.y, 
-                radius: 5, 
-                color: frontEndPlayers[backEndProjectile.playerId]?.color, 
-                velocity: backEndProjectile.velocity
-            })
-        } else {
-            frontEndProjectiles[id].x += backEndProjectiles[id].velocity.x
-            frontEndProjectiles[id].y += backEndProjectiles[id].velocity.y
-        }
-    }
-
-    // if backend projectile cannot be found, delete front end projectile
-    for (const id in frontEndProjectiles) {
-        if(!backEndProjectiles[id]) {
-            delete frontEndProjectiles[id]
-        }
-    }
-})
 
 // receive update from server
 socket.on('updateItems', (backEndItems) => {
@@ -176,11 +148,6 @@ function animate() {
         frontEndPlayer.draw()
     }
 
-    for(const id in frontEndProjectiles) {
-        const frontEndProjectile = frontEndProjectiles[id]
-        frontEndProjectile.draw()
-    }
-
     for(const id in frontEndItems) {
         const frontEndItem = frontEndItems[id]
         frontEndItem.draw()
@@ -201,22 +168,8 @@ document.querySelector('#usernameForm').addEventListener('submit', (event) => {
 })
 
 addEventListener('click', (event) => {
-    const {top, left} = canvas.getBoundingClientRect()
     if(!frontEndPlayers[socket.id]) return
-
-    const playerPosition = {
-        x: frontEndPlayers[socket.id].x,
-        y: frontEndPlayers[socket.id].y
-    }
-    const angle = Math.atan2(
-        (event.clientY - top) - playerPosition.y,
-        (event.clientX - left) - playerPosition.x
-    )
-    socket.emit('shoot', {
-        x: playerPosition.x,
-        y: playerPosition.y,
-        angle
-    })
+    socket.emit('click')
 })
 
 // looking for mouse movement

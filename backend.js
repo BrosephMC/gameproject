@@ -16,13 +16,13 @@ app.get('/', (req, res) => {
 })
 
 const backEndPlayers = {}
-const backEndProjectiles = {}
+// const backEndProjectiles = {}
 const backEndItems = {}
 
 const SPEED = 5
 const RADIUS = 10
-let projectileId = 0
-let itemId = 0
+// let projectileId = 0
+let ItemObjId = 0
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
 
@@ -34,20 +34,16 @@ io.on('connection', (socket) => {
 
     io.emit('updatePlayers', backEndPlayers)
 
-    socket.on('shoot', ({x, y, angle}) => {
-        projectileId++
-
-        const velocity = {
-          x: Math.cos(angle) * 5,
-          y: Math.sin(angle) * 5
-        }
-
-        backEndProjectiles[projectileId] = {
-            x,
-            y,
-            velocity,
-            playerId: socket.id,
-            radius: RADIUS
+    socket.on('click', () => {
+        // spawn items
+        for(let i = 0; i < 3; i++){
+            backEndItems[ItemObjId++] = {
+                x: 1024 * Math.random(),
+                y: 576 * Math.random(),
+                color: 'yellow',
+                radius: 10,
+                attachedToPlayer: null
+            }
         }
     })
 
@@ -67,17 +63,6 @@ io.on('connection', (socket) => {
             train: {head: null, tail: null, length: 0}
         }
 
-        // spawn items
-        for(let i = 0; i < 3; i++){
-            backEndItems[itemId++] = {
-                x: 1024 * Math.random(),
-                y: 576 * Math.random(),
-                color: 'yellow',
-                radius: 10,
-                attachedToPlayer: null
-            }
-        }
-
         // initCanvas
         backEndPlayers[socket.id].canvas = {
             width,
@@ -87,7 +72,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', (reason) => {
         console.log(reason)
-        delete backEndPlayers[socket.id]
+        if(backEndPlayers[socket.id]){
+            deleteAllItems(backEndPlayers[socket.id].train)
+            delete backEndPlayers[socket.id]
+        }
         io.emit('updatePlayers', backEndPlayers)
     })
 
@@ -102,12 +90,10 @@ io.on('connection', (socket) => {
 // collision detection function
 function objIsColliding(obj, objList){
     for(const id in objList){
-        const distance = Math.hypot(
-            obj.x - objList[id].x, 
-            obj.y - objList[id].y
-        )
-
-        if (distance < obj.radius + objList[id].radius) {
+        const dx = obj.x - objList[id].x
+        const dy = obj.y - objList[id].y
+        const radiusSum = obj.radius + objList[id].radius
+        if (dx * dx + dy * dy < radiusSum * radiusSum) {
             return id
         }
     }
@@ -116,51 +102,6 @@ function objIsColliding(obj, objList){
 
 // backend ticker
 setInterval(() => {
-
-    // update projectile positions
-    for(const id in backEndProjectiles) {
-        backEndProjectiles[id].x += backEndProjectiles[id].velocity.x
-        backEndProjectiles[id].y += backEndProjectiles[id].velocity.y
-
-        // delete projectiles when going out of bounds
-        const PROJECTILE_RADIUS = backEndProjectiles[id].radius
-        if (
-            backEndProjectiles[id].x - PROJECTILE_RADIUS >=
-            backEndPlayers[backEndProjectiles[id].playerId]?.canvas?.width ||
-            backEndProjectiles[id].x + PROJECTILE_RADIUS <= 0 ||
-            backEndProjectiles[id].y - PROJECTILE_RADIUS >=
-            backEndPlayers[backEndProjectiles[id].playerId]?.canvas?.height ||
-            backEndProjectiles[id].y + PROJECTILE_RADIUS <= 0
-        ) {
-            delete backEndProjectiles[id]
-            continue
-        }
-
-        for (const playerId in backEndPlayers) {
-            const backEndPlayer = backEndPlayers[playerId]
-
-            const DISTANCE = Math.hypot(
-                backEndProjectiles[id].x - backEndPlayer.x, 
-                backEndProjectiles[id].y - backEndPlayer.y
-            )
-
-            // collision detection
-            if (
-                //DISTANCE < backEndProjectiles[id].radius + backEndPlayer[id].radius &&
-                DISTANCE < PROJECTILE_RADIUS + backEndPlayer.radius &&
-                backEndProjectiles[id].playerId !== playerId
-            ) {
-                if(backEndPlayers[backEndProjectiles[id].playerId]){
-                    backEndPlayers[backEndProjectiles[id].playerId].score++
-                }
-                delete backEndProjectiles[id]
-                delete backEndPlayers[playerId]
-                break
-            }
-
-            // console.log(DISTANCE)
-        }
-    }
 
     // update player movement
     for(const id in backEndPlayers) {
@@ -201,7 +142,7 @@ setInterval(() => {
         }
         
         // Item collision
-        colId = objIsColliding(backEndPlayers[id], backEndItems)
+        const colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
             appendItem(id, backEndPlayers[id].train, colId)
             console.log("collided with " + colId)
@@ -209,8 +150,10 @@ setInterval(() => {
         console.log(backEndPlayers[id].train)
 
         // update item train movement
-        // MAKE CODE BETTER **************************************************
         for(itemId in backEndPlayers[id].train){
+            if(itemId == "head" || itemId == "tail" || itemId == "length"){
+                continue
+            }
             if(backEndPlayers[id].train.head == null) {
                 continue
             }
@@ -264,7 +207,6 @@ setInterval(() => {
 
     }
 
-    io.emit('updateProjectiles', backEndProjectiles)
     io.emit('updatePlayers', backEndPlayers)
     io.emit('updateItems', backEndItems)
 
@@ -287,12 +229,12 @@ function appendItem(playerId, train, itemId) {
         train.head = itemId
         train.tail = itemId
     } else {
-        train[colId] = {
+        train[itemId] = {
             next: null,
             previous: train.tail
         }
-        train[train.tail].next = colId
-        train.tail = colId
+        train[train.tail].next = itemId
+        train.tail = itemId
     }
     train.length++
     backEndItems[itemId].attachedToPlayer = playerId
@@ -303,5 +245,17 @@ function popItem(train) {
     train.tail = train[train.tail].previous
     train[train.tail].next = null
     delete train[temp]
+    train.length--
     return temp
+}
+
+function deleteAllItems(train) {
+    let i = train.head
+    while(i != train.tail) {
+        delete backEndItems[i]
+        i = train[i].next
+    }
+    delete backEndItems[i]
+    train = {head: null, tail: null, length: 0}
+    console.log(train)
 }
