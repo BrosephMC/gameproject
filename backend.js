@@ -35,16 +35,7 @@ io.on('connection', (socket) => {
     io.emit('updatePlayers', backEndPlayers)
 
     socket.on('click', () => {
-        // spawn items
-        for(let i = 0; i < 3; i++){
-            backEndItems[ItemObjId++] = {
-                x: 1024 * Math.random(),
-                y: 576 * Math.random(),
-                color: 'yellow',
-                radius: 10,
-                attachedToPlayer: null
-            }
-        }
+
     })
 
     socket.on('initGame', ({username, width, height}) => {
@@ -60,7 +51,9 @@ io.on('connection', (socket) => {
             mouseY: CANVAS_HEIGHT / 2,
             speed: 3,
             radius: RADIUS,
-            train: {head: null, tail: null, length: 0}
+            train: {head: null, tail: null, length: 0},
+            health: 100,
+            maxHealth: 100
         }
 
         // initCanvas
@@ -84,6 +77,19 @@ io.on('connection', (socket) => {
         backEndPlayers[socket.id].angle = angle
         backEndPlayers[socket.id].mouseX = mouseX
         backEndPlayers[socket.id].mouseY = mouseY
+    })
+
+    // spawn items debug
+    socket.on('spawnItemsDebug', () => {
+        for(let i = 0; i < 3; i++){
+            backEndItems[ItemObjId++] = {
+                x: 1024 * Math.random(),
+                y: 576 * Math.random(),
+                color: 'yellow',
+                radius: 10,
+                attachedToPlayer: null
+            }
+        }
     })
 })
 

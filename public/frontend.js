@@ -58,7 +58,9 @@ socket.on('updatePlayers', (backEndPlayers) => {
                 radius: backEndPlayer.radius,
                 color: backEndPlayer.color,
                 username: backEndPlayer.username,
-                angle: 0
+                angle: 0,
+                health: 100,
+                maxHealth: 100
             })
 
             document.querySelector('#playerLabels').innerHTML += 
@@ -192,3 +194,14 @@ document.addEventListener("mousemove", (event) => {
 
     socket.emit('moveMouse', {angle, mouseX, mouseY})
 });
+
+// spawn item debug
+window.addEventListener('keydown', (event) => {
+    if(!frontEndPlayers[socket.id]) return
+
+    switch(event.code) {
+        case 'Space':
+            socket.emit('spawnItemsDebug')
+            break
+    }
+})
