@@ -1,19 +1,24 @@
+typeMap = {
+  dummy: 'dimGray',
+  rock: 'white',
+  heal: 'crimson'
+}
+
 class Item {
-    constructor({x, y, radius = 10, color = 'white'}) {
+    constructor({x, y, radius = 10, type = 'dummy'}) {
       this.x = x
       this.y = y
       this.radius = radius
-      this.color = color
-      // this.velocity = velocity
+      this.type = type
     }
   
     draw() {
       c.save()
-      c.shadowColor = this.color
+      c.shadowColor = typeMap[this.type]
       c.shadowBlur = 20
       c.beginPath()
       c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false)
-      c.fillStyle = this.color
+      c.fillStyle = typeMap[this.type]
       c.fill()
       c.restore()
     }

@@ -16,12 +16,12 @@ app.get('/', (req, res) => {
 })
 
 const backEndPlayers = {}
-// const backEndProjectiles = {}
+const backEndProjectiles = {}
 const backEndItems = {}
 
 const SPEED = 5
 const RADIUS = 10
-// let projectileId = 0
+let projectileId = 0
 let ItemObjId = 0
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
@@ -35,7 +35,30 @@ io.on('connection', (socket) => {
     io.emit('updatePlayers', backEndPlayers)
 
     socket.on('click', () => {
-
+        if (backEndPlayers[socket.id].train.head == null) return
+        switch(backEndItems[backEndPlayers[socket.id].train.head].type) {
+            case 'rock':
+                console.log("you have a rock!")
+                const xValue = Math.cos(backEndPlayers[socket.id].angle)
+                const yValue = Math.sin(backEndPlayers[socket.id].angle)
+                backEndProjectiles[projectileId++] = {
+                    x: backEndPlayers[socket.id].x + xValue * 15,
+                    y: backEndPlayers[socket.id].y + yValue * 15,
+                    velX: xValue * 20,
+                    velY: yValue * 20,
+                    damage: 15,
+                    radius: 15,
+                    owner: socket.id
+                }
+                break
+            case 'heal':
+                console.log("you have healed!")
+                backEndPlayers[socket.id].health += 10
+            default:
+                console.log("It's the default case!")
+                break
+        }
+        popItem(backEndPlayers[socket.id].train)
     })
 
     socket.on('initGame', ({username, width, height}) => {
@@ -81,14 +104,19 @@ io.on('connection', (socket) => {
 
     // spawn items debug
     socket.on('spawnItemsDebug', () => {
-        for(let i = 0; i < 3; i++){
-            backEndItems[ItemObjId++] = {
-                x: 1024 * Math.random(),
-                y: 576 * Math.random(),
-                color: 'yellow',
-                radius: 10,
-                attachedToPlayer: null
-            }
+        backEndItems[ItemObjId++] = {
+            x: 1024 * Math.random(),
+            y: 576 * Math.random(),
+            radius: 10,
+            attachedToPlayer: null,
+            type: 'rock'
+        }
+        backEndItems[ItemObjId++] = {
+            x: 1024 * Math.random(),
+            y: 576 * Math.random(),
+            radius: 10,
+            attachedToPlayer: null,
+            type: 'heal'
         }
     })
 })
@@ -108,6 +136,22 @@ function objIsColliding(obj, objList){
 
 // backend ticker
 setInterval(() => {
+
+    // update projectiles movement
+    for(const id in backEndProjectiles){
+        const projRadius = backEndProjectiles[id].radius
+        backEndProjectiles[id].x += backEndProjectiles[id].velX
+        backEndProjectiles[id].y += backEndProjectiles[id].velY
+
+        if(backEndProjectiles[id].x < 0) backEndProjectiles[id].x = CANVAS_WIDTH - projRadius
+        if(backEndProjectiles[id].x > CANVAS_WIDTH) backEndProjectiles[id].x = 0 + projRadius
+        if(backEndProjectiles[id].y < 0) backEndProjectiles[id].y = CANVAS_HEIGHT - projRadius
+        if(backEndProjectiles[id].y > CANVAS_HEIGHT) backEndProjectiles[id].y = 0 + projRadius
+
+        backEndProjectiles[id].velX *= 0.96
+        backEndProjectiles[id].velY *= 0.96
+        if(Math.abs(backEndProjectiles[id].velX) <= 0.1 && Math.abs(backEndProjectiles[id].velY) <= 0.1) delete backEndProjectiles[id]
+    }
 
     // update player movement
     for(const id in backEndPlayers) {
@@ -146,14 +190,22 @@ setInterval(() => {
         if(playerSides.bottom > CANVAS_HEIGHT){
             backEndPlayers[id].y = CANVAS_HEIGHT - backEndPlayers[id].radius
         }
+
+        // Projectile collision
+        const colProjId = objIsColliding(backEndPlayers[id], backEndProjectiles)
+        if(colProjId != null){
+            backEndPlayers[id].health -= backEndProjectiles[colProjId].damage
+            delete backEndProjectiles[colProjId]
+            console.log("collided with projecitle " + colProjId)
+        }
         
         // Item collision
         const colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
             appendItem(id, colId)
-            console.log("collided with " + colId)
+            console.log("collided with item " + colId)
         }
-        console.log(backEndPlayers[id].train)
+        // console.log(backEndPlayers[id].train)
 
         // update item train movement
         for(itemId in backEndPlayers[id].train){
@@ -215,6 +267,7 @@ setInterval(() => {
 
     io.emit('updatePlayers', backEndPlayers)
     io.emit('updateItems', backEndItems)
+    io.emit('updateProjectiles', backEndProjectiles)
 
 }, 15)
 
@@ -279,12 +332,20 @@ function appendItem(playerId, itemId) {
 }
 
 function popItem(train) {
-    const temp = train.tail
-    train.tail = train[train.tail].previous
-    train[train.tail].next = null
-    delete train[temp]
+    if(train.head == null) return
+    const temp = train.head
+    if(train[train.head].next != null){
+        train.head = train[train.head].next
+        train[train.head].previous = null
+        delete train[temp]
+    } else {
+        delete train[train.head]
+        train.head = null
+        train.tail = null
+    }
+    delete backEndItems[temp]
     // train.length--
-    return temp
+    return
 }
 
 function deleteAllItems(train) {
@@ -295,5 +356,4 @@ function deleteAllItems(train) {
     }
     delete backEndItems[i]
     train = {head: null, tail: null, length: 0}
-    console.log(train)
 }

@@ -10,10 +10,40 @@ canvas.height = CANVAS_HEIGHT * devicePixelRatio
 c.scale(devicePixelRatio, devicePixelRatio)
 
 const frontEndPlayers = {}
-// const frontEndProjectiles = {}
+const frontEndProjectiles = {}
 const frontEndItems = {}
 
 const socket = io();
+
+// receive update from server
+socket.on('updateProjectiles', (backEndProjectiles) => {
+    for (const id in backEndProjectiles) {
+        const backEndProjectile = backEndProjectiles[id]
+
+        // if new backend projectile does not exist, make front end item
+        if (!frontEndProjectiles[id]) {
+            frontEndProjectiles[id] = new Projectile({
+                x: backEndProjectile.x, 
+                y: backEndProjectile.y, 
+                radius: backEndProjectile.radius,
+                color: backEndProjectile.color, 
+            })
+        } else {
+            // frontEndProjectiles[id].x += backEndProjectiles[id].velocity.x
+            // frontEndProjectiles[id].y += backEndProjectiles[id].velocity.y
+            frontEndProjectiles[id].x = backEndProjectile.x
+            frontEndProjectiles[id].y = backEndProjectile.y
+        }
+    }
+
+    // if backend item cannot be found, delete front end item
+    for (const id in frontEndProjectiles) {
+        if(!backEndProjectiles[id]) {
+            delete frontEndProjectiles[id]
+        }
+    }
+    console.log(frontEndProjectiles)
+})
 
 // receive update from server
 socket.on('updateItems', (backEndItems) => {
@@ -26,7 +56,7 @@ socket.on('updateItems', (backEndItems) => {
                 x: backEndItem.x, 
                 y: backEndItem.y, 
                 // default radius
-                color: backEndItem.color, 
+                type: backEndItem.type, 
             })
         } else {
             // frontEndItems[id].x += backEndItems[id].velocity.x
@@ -96,6 +126,10 @@ socket.on('updatePlayers', (backEndPlayers) => {
             //update player rotation angle
             frontEndPlayers[id].angle = backEndPlayer.angle
 
+            //update player stats
+            frontEndPlayers[id].health = backEndPlayer.health
+            frontEndPlayers[id].maxHealth = backEndPlayer.maxHealth
+
             // if it's the client's own player
             if( id === socket.id){
                 // frontEndPlayers[id].x = backEndPlayer.x
@@ -153,6 +187,11 @@ function animate() {
     for(const id in frontEndItems) {
         const frontEndItem = frontEndItems[id]
         frontEndItem.draw()
+    }
+
+    for(const id in frontEndProjectiles) {
+        const frontEndProjectile = frontEndProjectiles[id]
+        frontEndProjectile.draw()
     }
 }
 
