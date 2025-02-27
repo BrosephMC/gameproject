@@ -42,18 +42,27 @@ io.on('connection', (socket) => {
                 const xValue = Math.cos(backEndPlayers[socket.id].angle)
                 const yValue = Math.sin(backEndPlayers[socket.id].angle)
                 backEndProjectiles[projectileId++] = {
-                    x: backEndPlayers[socket.id].x + xValue * 15,
+                    x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
                     y: backEndPlayers[socket.id].y + yValue * 15,
                     velX: xValue * 20,
                     velY: yValue * 20,
-                    damage: 15,
+                    damage: 20,
                     radius: 15,
                     owner: socket.id
                 }
                 break
             case 'heal':
                 console.log("you have healed!")
-                backEndPlayers[socket.id].health += 10
+                healPlayer(backEndPlayers[socket.id], 30)
+                break
+            case 'bomb':
+                console.log("you blew up")
+                healPlayer(backEndPlayers[socket.id], -30)
+                const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
+                for(i in casualties) {
+                    healPlayer(backEndPlayers[casualties[i]], -20)
+                }
+                break
             default:
                 console.log("It's the default case!")
                 break
@@ -62,16 +71,24 @@ io.on('connection', (socket) => {
     })
 
     socket.on('initGame', ({username, width, height}) => {
+        const initMouseX = CANVAS_WIDTH / 2
+        const initMouseY = CANVAS_HEIGHT / 2
+        const initX = CANVAS_WIDTH * Math.random()
+        const initY = CANVAS_HEIGHT * Math.random()
+        const initAngle = Math.atan2(
+            initMouseY - initY,
+            initMouseX - initX
+        )
         backEndPlayers[socket.id] = {
-            x: 1024 * Math.random(),
-            y: 576 * Math.random(),
+            x: initX,
+            y: initY,
             color: `hsl(${360 * Math.random()}, 100%, 50%)`,
             sequenceNumber: 0,
             score: 0,
             username: username,
-            angle: 0,
-            mouseX: CANVAS_WIDTH / 2,
-            mouseY: CANVAS_HEIGHT / 2,
+            angle: initAngle,
+            mouseX: initMouseX,
+            mouseY: initMouseY,
             speed: 3,
             radius: RADIUS,
             train: {head: null, tail: null, length: 0},
@@ -105,25 +122,39 @@ io.on('connection', (socket) => {
     // spawn items debug
     socket.on('spawnItemsDebug', () => {
         backEndItems[ItemObjId++] = {
-            x: 1024 * Math.random(),
-            y: 576 * Math.random(),
+            x: CANVAS_WIDTH * Math.random(),
+            y: CANVAS_HEIGHT * Math.random(),
             radius: 10,
             attachedToPlayer: null,
             type: 'rock'
         }
         backEndItems[ItemObjId++] = {
-            x: 1024 * Math.random(),
-            y: 576 * Math.random(),
+            x: CANVAS_WIDTH * Math.random(),
+            y: CANVAS_HEIGHT * Math.random(),
             radius: 10,
             attachedToPlayer: null,
             type: 'heal'
+        }
+        backEndItems[ItemObjId++] = {
+            x: CANVAS_WIDTH * Math.random(),
+            y: CANVAS_HEIGHT * Math.random(),
+            radius: 10,
+            attachedToPlayer: null,
+            type: 'health_increase'
+        }
+        backEndItems[ItemObjId++] = {
+            x: CANVAS_WIDTH * Math.random(),
+            y: CANVAS_HEIGHT * Math.random(),
+            radius: 10,
+            attachedToPlayer: null,
+            type: 'bomb'
         }
     })
 })
 
 // collision detection function
 function objIsColliding(obj, objList){
-    for(const id in objList){
+    for(const id in objList) {
         const dx = obj.x - objList[id].x
         const dy = obj.y - objList[id].y
         const radiusSum = obj.radius + objList[id].radius
@@ -132,6 +163,20 @@ function objIsColliding(obj, objList){
         }
     }
     return null
+}
+
+// returns all objects within a certain radius (includes executor)
+function radiusDetection(obj, objList, radius) {
+    outputList = []
+    for(const id in objList) {
+        const dx = obj.x - objList[id].x
+        const dy = obj.y - objList[id].y
+        const radiusSum = obj.radius + objList[id].radius + radius
+        if (dx * dx + dy * dy < radiusSum * radiusSum) {
+            outputList.push(id)
+        }
+    }
+    return outputList
 }
 
 // backend ticker
@@ -194,7 +239,7 @@ setInterval(() => {
         // Projectile collision
         const colProjId = objIsColliding(backEndPlayers[id], backEndProjectiles)
         if(colProjId != null){
-            backEndPlayers[id].health -= backEndProjectiles[colProjId].damage
+            healPlayer(backEndPlayers[id], -backEndProjectiles[colProjId].damage)
             delete backEndProjectiles[colProjId]
             console.log("collided with projecitle " + colProjId)
         }
@@ -202,20 +247,24 @@ setInterval(() => {
         // Item collision
         const colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
+            let blewup = false
+            if(backEndItems[colId].type == 'bomb' && backEndItems[colId].attachedToPlayer != null && backEndItems[colId].attachedToPlayer != id) {
+                blewup = true
+            }
             appendItem(id, colId)
             console.log("collided with item " + colId)
+            if(blewup) {
+                healPlayer(backEndPlayers[id], -30)
+                // popItem(backEndPlayers[id].train)
+            }
         }
         // console.log(backEndPlayers[id].train)
 
-        // update item train movement
-        for(itemId in backEndPlayers[id].train){
-            if(itemId == "head" || itemId == "tail" || itemId == "length"){
-                continue
-            }
-            if(backEndPlayers[id].train.head == null) {
-                continue
-            }
+        // reset maxHealth for recalculation
+        backEndPlayers[id].maxHealth = 100
 
+        // update item train movement
+        if(backEndPlayers[id].train.head != null) {
             let headId = backEndPlayers[id].train.head;
             let headItem = backEndItems[headId];
 
@@ -241,6 +290,11 @@ setInterval(() => {
                 let current = backEndPlayers[id].train[prevId];
                 let nextId = current.next;
 
+                // check for passive item effects on headItem
+                if(backEndItems[prevId].type == 'health_increase') {
+                    backEndPlayers[id].maxHealth += 25
+                }
+
                 if (nextId !== null) {
                     let item = backEndItems[nextId];
 
@@ -263,6 +317,10 @@ setInterval(() => {
             }
         }
 
+        // clamp health if maxHealth is removed
+        if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
+            backEndPlayers[id].health = backEndPlayers[id].maxHealth
+        }
     }
 
     io.emit('updatePlayers', backEndPlayers)
@@ -356,4 +414,13 @@ function deleteAllItems(train) {
     }
     delete backEndItems[i]
     train = {head: null, tail: null, length: 0}
+}
+
+// ***** Other Functions *******
+
+function healPlayer(player, value) {
+    player.health += value
+    if(player.health >= player.maxHealth) {
+        player.health = player.maxHealth
+    }
 }

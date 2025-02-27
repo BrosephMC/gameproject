@@ -1,7 +1,9 @@
 typeMap = {
-  dummy: 'dimGray',
-  rock: 'white',
-  heal: 'crimson'
+  dummy: 'DimGray',
+  rock: 'White',
+  heal: 'LawnGreen',
+  health_increase: 'Green',
+  bomb: 'Red'
 }
 
 class Item {
@@ -21,11 +23,19 @@ class Item {
       c.fillStyle = typeMap[this.type]
       c.fill()
       c.restore()
+
+      // label
+      c.shadowColor = 'rgb(0, 0, 0)';
+      c.shadowOffsetX = 2;
+      c.shadowOffsetY = 2;
+      c.shadowBlur = 3;
+      c.font = '12px sans-serif'
+      c.fillStyle = 'white'
+      c.fillText(this.type, this.x - (c.measureText(this.type).width / 2), this.y)
+      c.shadowColor = 'rgb(0, 0, 0, 0)';
     }
   
     update() {
       this.draw()
-      // this.x = this.x + this.velocity.x
-      // this.y = this.y + this.velocity.y
     }
   }

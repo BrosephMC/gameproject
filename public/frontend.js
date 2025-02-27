@@ -42,7 +42,7 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
             delete frontEndProjectiles[id]
         }
     }
-    console.log(frontEndProjectiles)
+    // console.log(frontEndProjectiles)
 })
 
 // receive update from server
@@ -72,7 +72,7 @@ socket.on('updateItems', (backEndItems) => {
             delete frontEndItems[id]
         }
     }
-    console.log(frontEndItems)
+    // console.log(frontEndItems)
 })
 
 // receive update from server
@@ -173,6 +173,16 @@ function animate() {
     // c.fillRect(0, 0, canvas.width, canvas.height)
     c.clearRect(0, 0, canvas.width, canvas.height)
 
+    for(const id in frontEndItems) {
+        const frontEndItem = frontEndItems[id]
+        frontEndItem.draw()
+    }
+
+    for(const id in frontEndProjectiles) {
+        const frontEndProjectile = frontEndProjectiles[id]
+        frontEndProjectile.draw()
+    }
+
     for(const id in frontEndPlayers) {
         const frontEndPlayer = frontEndPlayers[id]
         if(frontEndPlayer.target){
@@ -182,16 +192,6 @@ function animate() {
                 (frontEndPlayers[id].target.y - frontEndPlayers[id].y) * 0.5
         }
         frontEndPlayer.draw()
-    }
-
-    for(const id in frontEndItems) {
-        const frontEndItem = frontEndItems[id]
-        frontEndItem.draw()
-    }
-
-    for(const id in frontEndProjectiles) {
-        const frontEndProjectile = frontEndProjectiles[id]
-        frontEndProjectile.draw()
     }
 }
 
