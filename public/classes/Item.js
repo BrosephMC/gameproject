@@ -12,6 +12,8 @@ class Item {
       this.y = y
       this.radius = radius
       this.type = type
+      this.sprite = new Image()
+      this.sprite.src = "assets/images/" + this.type + ".png"
     }
   
     draw() {
@@ -19,7 +21,8 @@ class Item {
       c.shadowColor = typeMap[this.type]
       c.shadowBlur = 20
       c.beginPath()
-      c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false)
+      // c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false)
+      c.drawImage(this.sprite, this.x-this.radius, this.y-this.radius, this.radius*2, this.radius*2)
       c.fillStyle = typeMap[this.type]
       c.fill()
       c.restore()
