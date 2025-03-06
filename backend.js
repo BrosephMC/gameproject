@@ -27,6 +27,7 @@ const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
 
 const SPACING = 30
+const HEALTH_INCREASE_VALUE = 25
 
 // when user connects
 io.on('connection', (socket) => {
@@ -53,14 +54,14 @@ io.on('connection', (socket) => {
                 break
             case 'heal':
                 console.log("you have healed!")
-                healPlayer(backEndPlayers[socket.id], 30)
+                healPlayer(socket.id, 30)
                 break
             case 'bomb':
                 console.log("you blew up")
-                healPlayer(backEndPlayers[socket.id], -30)
+                healPlayer(socket.id, -30)
                 const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
                 for(i in casualties) {
-                    healPlayer(backEndPlayers[casualties[i]], -20)
+                    healPlayer(casualties[i], -20)
                 }
                 break
             default:
@@ -239,7 +240,7 @@ setInterval(() => {
         // Projectile collision
         const colProjId = objIsColliding(backEndPlayers[id], backEndProjectiles)
         if(colProjId != null){
-            healPlayer(backEndPlayers[id], -backEndProjectiles[colProjId].damage)
+            healPlayer(id, -backEndProjectiles[colProjId].damage)
             delete backEndProjectiles[colProjId]
             console.log("collided with projecitle " + colProjId)
         }
@@ -247,15 +248,14 @@ setInterval(() => {
         // Item collision
         const colId = objIsColliding(backEndPlayers[id], backEndItems)
         if(colId != null) {
-            let blewup = false
-            if(backEndItems[colId].type == 'bomb' && backEndItems[colId].attachedToPlayer != null && backEndItems[colId].attachedToPlayer != id) {
-                blewup = true
-            }
-            appendItem(id, colId)
-            console.log("collided with item " + colId)
-            if(blewup) {
-                healPlayer(backEndPlayers[id], -30)
-                // popItem(backEndPlayers[id].train)
+            const otherPlayerId = backEndItems[colId].attachedToPlayer
+            if(backEndItems[colId].type == 'bomb' && otherPlayerId != null && otherPlayerId != id) {
+                blowup(backEndPlayers[otherPlayerId].train, colId)
+                healPlayer(id, -90)
+                console.log("you blew up on item " + colId)
+            } else {
+                appendItem(id, colId)
+                // console.log("collided with item " + colId)
             }
         }
         // console.log(backEndPlayers[id].train)
@@ -268,18 +268,19 @@ setInterval(() => {
             let headId = backEndPlayers[id].train.head;
             let headItem = backEndItems[headId];
 
-            if (headItem) {
-                // Calculate direction from head to player
-                let dx = backEndPlayers[id].x - headItem.x;
-                let dy = backEndPlayers[id].y - headItem.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
+            // Calculate direction from head to player
+            let dx = backEndPlayers[id].x - headItem.x;
+            let dy = backEndPlayers[id].y - headItem.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance > SPACING) {
-                    let angle = Math.atan2(dy, dx);
-                    headItem.x += Math.cos(angle) * (distance - SPACING);
-                    headItem.y += Math.sin(angle) * (distance - SPACING);
-                }
+            if (distance > SPACING) {
+                let angle = Math.atan2(dy, dx);
+                headItem.x += Math.cos(angle) * (distance - SPACING);
+                headItem.y += Math.sin(angle) * (distance - SPACING);
             }
+
+            // highlight head item
+            headItem.highlighted = true; 
 
             // Move the rest of the train
             let prevId = headId;
@@ -292,11 +293,12 @@ setInterval(() => {
 
                 // check for passive item effects on headItem
                 if(backEndItems[prevId].type == 'health_increase') {
-                    backEndPlayers[id].maxHealth += 25
+                    backEndPlayers[id].maxHealth += HEALTH_INCREASE_VALUE
                 }
 
                 if (nextId !== null) {
                     let item = backEndItems[nextId];
+                    item.highlighted = false;
 
                     // Move towards the previous train segment while maintaining spacing
                     let dx = prevX - item.x;
@@ -321,6 +323,7 @@ setInterval(() => {
         if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
             backEndPlayers[id].health = backEndPlayers[id].maxHealth
         }
+        console.log(backEndPlayers[id].train)
     }
 
     io.emit('updatePlayers', backEndPlayers)
@@ -340,6 +343,11 @@ function appendItem(playerId, itemId) {
     const otherPlayerId = backEndItems[itemId].attachedToPlayer
     if(otherPlayerId == playerId) return
     const train = backEndPlayers[playerId].train
+
+    // add health when picking up health_increase
+    // if(backEndItems[itemId].type == 'health_increase') {
+    //     healPlayer(playerId, HEALTH_INCREASE_VALUE)
+    // }
     
     let nextItem = null
     if(otherPlayerId != null) {
@@ -416,11 +424,37 @@ function deleteAllItems(train) {
     train = {head: null, tail: null, length: 0}
 }
 
+function blowup(train, itemId, init = false) {
+    const current = train[itemId]
+
+    // main item (bomb) only for first bomb
+    if(!init){
+        train.tail = current.previous
+        if(itemId == train.head) {
+            train.head = null
+        } else {
+            train[train.tail].next = null
+        }
+        delete backEndItems[itemId]
+    }
+
+    if(current.next != null){
+        blowup(train, current.next, true)
+    }
+
+    if(backEndItems[itemId] != null){
+        backEndItems[itemId].attachedToPlayer = null
+        backEndItems[itemId].x += (30 * Math.random()) - 15
+        backEndItems[itemId].y += (30 * Math.random()) - 15
+    }
+    delete train[itemId]
+}
+
 // ***** Other Functions *******
 
-function healPlayer(player, value) {
-    player.health += value
-    if(player.health >= player.maxHealth) {
-        player.health = player.maxHealth
+function healPlayer(playerId, value) {
+    backEndPlayers[playerId].health += value
+    if(backEndPlayers[playerId].health >= backEndPlayers[playerId].maxHealth) {
+        backEndPlayers[playerId].health = backEndPlayers[playerId].maxHealth
     }
 }

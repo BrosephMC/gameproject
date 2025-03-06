@@ -50,7 +50,7 @@ class Player {
     c.fillRect(HBPosX, HBPosY, healthLength, HEALTH_BAR_HEIGHT);
 
     // debugging text
-    c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
-    c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
+    // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
+    // c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
   }
 }

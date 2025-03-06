@@ -56,13 +56,14 @@ socket.on('updateItems', (backEndItems) => {
                 x: backEndItem.x, 
                 y: backEndItem.y, 
                 // default radius
-                type: backEndItem.type, 
+                type: backEndItem.type
             })
         } else {
             // frontEndItems[id].x += backEndItems[id].velocity.x
             // frontEndItems[id].y += backEndItems[id].velocity.y
             frontEndItems[id].x = backEndItem.x
             frontEndItems[id].y = backEndItem.y
+            frontEndItems[id].highlighted = backEndItem.highlighted
         }
     }
 
