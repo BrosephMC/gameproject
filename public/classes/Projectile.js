@@ -19,9 +19,9 @@ class Projectile {
       c.restore()
     }
   
-    update() {
-      this.draw()
-      this.x = this.x + this.velX
-      this.y = this.y + this.velY
-    }
+    // update() {
+    //   this.draw()
+    //   this.x = this.x + this.velX
+    //   this.y = this.y + this.velY
+    // }
   }

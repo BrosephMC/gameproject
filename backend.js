@@ -63,6 +63,13 @@ io.on('connection', (socket) => {
                 for(i in casualties) {
                     healPlayer(casualties[i], -20)
                 }
+                io.emit('spawnParticle', {
+                    x: backEndPlayers[socket.id].x,
+                    y: backEndPlayers[socket.id].y,
+                    type: 'explosion',
+                    radius: 30,
+                    lifepsan: 120
+                })
                 break
             default:
                 console.log("It's the default case!")
@@ -250,9 +257,19 @@ setInterval(() => {
         if(colId != null) {
             const otherPlayerId = backEndItems[colId].attachedToPlayer
             if(backEndItems[colId].type == 'bomb' && otherPlayerId != null && otherPlayerId != id) {
+                const itemX = backEndItems[colId].x
+                const itemY = backEndItems[colId].y
                 blowup(backEndPlayers[otherPlayerId].train, colId)
                 healPlayer(id, -90)
                 console.log("you blew up on item " + colId)
+                io.emit('spawnParticle', {
+                    x: itemX,
+                    y: itemY,
+                    type: 'explosion',
+                    radius: 30,
+                    lifepsan: 120
+                })
+                console.log("emitted particle")
             } else {
                 appendItem(id, colId)
                 // console.log("collided with item " + colId)
@@ -323,7 +340,7 @@ setInterval(() => {
         if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
             backEndPlayers[id].health = backEndPlayers[id].maxHealth
         }
-        console.log(backEndPlayers[id].train)
+        // console.log(backEndPlayers[id].train)
     }
 
     io.emit('updatePlayers', backEndPlayers)

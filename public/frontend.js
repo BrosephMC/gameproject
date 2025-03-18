@@ -12,8 +12,20 @@ c.scale(devicePixelRatio, devicePixelRatio)
 const frontEndPlayers = {}
 const frontEndProjectiles = {}
 const frontEndItems = {}
+const particles = {}
+let particleId = 0
 
 const socket = io();
+
+socket.on('spawnParticle', (particle) => {
+    particles[particleId++] = new Particle({
+        x: particle.x,
+        y: particle.y,
+        radius: particle.radius,
+        type: particle.type,
+        lifespan: particle.lifespan
+    })
+})
 
 // receive update from server
 socket.on('updateProjectiles', (backEndProjectiles) => {
@@ -193,6 +205,24 @@ function animate() {
                 (frontEndPlayers[id].target.y - frontEndPlayers[id].y) * 0.5
         }
         frontEndPlayer.draw()
+    }
+
+    for(const id in particles) {
+        console.log("rendering particle")
+        const particle = particles[id]
+        console.log(particle.lifespan)
+
+        if(particle.lifespan > 0){
+            particle.draw()
+        }
+
+        // Reduce lifespan
+        particle.lifespan -= 1;
+
+        // Remove particle if its life is over
+        if (particle.lifespan <= 0) {
+            delete particles[id];
+        }
     }
 }
 

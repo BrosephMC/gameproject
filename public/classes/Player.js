@@ -12,6 +12,8 @@ class Player {
     this.angle = angle
     this.health = health
     this.maxHealth = maxHealth
+    // this.sprite = new Image()
+    // this.sprite.src = "assets/images/player_test_2.png"
   }
 
   draw() {
@@ -30,6 +32,8 @@ class Player {
     c.moveTo(this.radius, 0)
     c.lineTo(-this.radius / 1.5, this.radius / 1.5)
     c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
+    // c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
+
     c.closePath()
     c.fillStyle = this.color
     c.fill()
