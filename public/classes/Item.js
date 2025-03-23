@@ -1,6 +1,3 @@
-const explosionSprite = new Image()
-explosionSprite.src = "assets/images/explosion.png"
-
 class Item {
     constructor({x, y, radius = 10, type = 'dummy'}) {
       this.x = x

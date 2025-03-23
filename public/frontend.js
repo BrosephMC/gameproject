@@ -15,7 +15,21 @@ const frontEndItems = {}
 const particles = {}
 let particleId = 0
 
+// const GameState = Object.freeze({
+//     WAITING_ROOM: "waiting_room",
+//     PLAYING: "playing",
+//     PLAYING_COUNTDOWN: "playing_countdown",
+//     PLAYING_FINISHED: "playing_finished",
+// });
+
+// let frontEndGameState = GameState.WAITING_ROOM;
+let countdownTimer = 60
+
 const socket = io();
+
+socket.on('updateTimer', (BackEndCountdownTimer) => {
+    countdownTimer = BackEndCountdownTimer
+})
 
 socket.on('spawnParticle', (particle) => {
     particles[particleId++] = new Particle({
@@ -142,24 +156,11 @@ socket.on('updatePlayers', (backEndPlayers) => {
             //update player stats
             frontEndPlayers[id].health = backEndPlayer.health
             frontEndPlayers[id].maxHealth = backEndPlayer.maxHealth
+            frontEndPlayers[id].ready = backEndPlayer.ready
 
             // if it's the client's own player
             if( id === socket.id){
-                // frontEndPlayers[id].x = backEndPlayer.x
-                // frontEndPlayers[id].y = backEndPlayer.y
-    
-                // const lastBackendInputIndex = playerInputs.findIndex((input) => {
-                //     return backEndPlayer.sequenceNumber === input.sequenceNumber
-                // })
-    
-                // if(lastBackendInputIndex > -1){
-                //     playerInputs.splice(0, lastBackendInputIndex + 1)
-                // }
-    
-                // playerInputs.forEach((input) => {
-                //     frontEndPlayers[id].target.x += input.dx
-                //     frontEndPlayers[id].target.y += input.dy
-                // })
+
             } 
         }
     }
@@ -208,13 +209,8 @@ function animate() {
     }
 
     for(const id in particles) {
-        console.log("rendering particle")
         const particle = particles[id]
-        console.log(particle.lifespan)
-
-        if(particle.lifespan > 0){
-            particle.draw()
-        }
+        particle.draw()
 
         // Reduce lifespan
         particle.lifespan -= 1;
@@ -224,6 +220,10 @@ function animate() {
             delete particles[id];
         }
     }
+
+    c.font = '16px sans-serif'
+    c.fillStyle = 'white'
+    c.fillText("Timer: " + countdownTimer, CANVAS_WIDTH/2 - (c.measureText("Timer: " + countdownTimer).width / 2), 50)
 }
 
 animate()
@@ -231,7 +231,7 @@ animate()
 document.querySelector('#usernameForm').addEventListener('submit', (event) => {
     event.preventDefault()
     document.querySelector('#usernameForm').style.display = 'none'
-    socket.emit('initGame', {
+    socket.emit('initPlayer', {
         width: canvas.width, 
         height: canvas.height,
         username: document.querySelector('#usernameInput').value
