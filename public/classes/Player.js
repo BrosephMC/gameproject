@@ -3,7 +3,7 @@ const DEFAULT_HEALTH_BAR_WIDTH = 30;
 const HEALTH_BAR_HEIGHT = 4;
 
 class Player {
-  constructor({x, y, radius, color, username, angle, health, maxHealth, ready}) {
+  constructor({x, y, radius, color, username, angle, health, maxHealth, ready, eliminated}) {
     this.x = x
     this.y = y
     this.radius = radius
@@ -13,6 +13,7 @@ class Player {
     this.health = health
     this.maxHealth = maxHealth
     this.ready = ready
+    this.eliminated = eliminated
     // this.sprite = new Image()
     // this.sprite.src = "assets/images/player_test_2.png"
   }
@@ -21,6 +22,10 @@ class Player {
     c.font = '12px sans-serif'
     c.fillStyle = 'white'
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
+
+    if(this.eliminated) {
+      c.fillStyle = 'gray'
+    }
 
     c.save()
     c.translate(this.x, this.y);
@@ -61,8 +66,8 @@ class Player {
 
 
     // debugging text
-    c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
-    c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
+    // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
+    // c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
     // c.fillText("x:"+ this.health, this.x - (c.measureText(this.x).width / 2), this.y + 65)
     // c.fillText("y:"+ this.maxHealth, this.x - (c.measureText(this.y).width / 2), this.y + 75)
   }

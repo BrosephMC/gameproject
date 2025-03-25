@@ -25,6 +25,7 @@ let projectileId = 0
 let ItemObjId = 0
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
+const tick = 0.015
 
 const SPACING = 30
 const HEALTH_INCREASE_VALUE = 25
@@ -38,6 +39,7 @@ const GameState = Object.freeze({
 
 let currentGameState = GameState.WAITING_ROOM;
 let countdownTimer = 60
+let backEndHeaderText
 
 // when user connects
 io.on('connection', (socket) => {
@@ -238,8 +240,15 @@ setInterval(() => {
             if(Math.abs(backEndProjectiles[id].velX) <= 0.1 && Math.abs(backEndProjectiles[id].velY) <= 0.1) delete backEndProjectiles[id]
         }
 
+        let numAlivePlayers = 0
+        let lastPlayerId
+
         // update player movement
         for(const id in backEndPlayers) {
+            if(backEndPlayers[id].health <= 0) backEndPlayers[id].eliminated = true;
+            if(backEndPlayers[id].eliminated) continue;
+            numAlivePlayers++
+
             let dx = backEndPlayers[id].mouseX - backEndPlayers[id].x
             let dy = backEndPlayers[id].mouseY - backEndPlayers[id].y
             let distance = Math.sqrt(dx * dx + dy * dy)
@@ -375,6 +384,16 @@ setInterval(() => {
                 backEndPlayers[id].health = backEndPlayers[id].maxHealth
             }
             // console.log(backEndPlayers[id].train)
+
+            lastPlayerId = id
+        }
+
+        backEndHeaderText = "";
+
+        if(numAlivePlayers <= 1) {
+            backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
+            currentGameState = GameState.PLAYING_FINISHED
+            countdownTimer = 3
         }
 
     break;
@@ -391,18 +410,60 @@ setInterval(() => {
 
         // if more than 2 players
         if (i >= 2) {
-            countdownTimer -= 0.015 // I think the seconds are a little too slow
+            countdownTimer -= tick // I think the seconds are a little too slow
         }
 
         if (readys >= 2 && readys == i && countdownTimer > 3) {
-            countdownTimer = 3
+            countdownTimer = 1
         }
 
         // START THE GAME
         if(countdownTimer <= 0) {
+            currentGameState = GameState.PLAYING_COUNTDOWN
+            countdownTimer = 3
+
+            for(const id in backEndPlayers) {
+                // make everyone un ready
+                backEndPlayers[id].ready = false;
+
+                // spawn people in different locations
+                backEndPlayers[id].x = CANVAS_WIDTH * Math.random()
+                backEndPlayers[id].y = CANVAS_HEIGHT * Math.random()
+            }
+
+        }
+
+        backEndHeaderText = "Timer: "+Math.ceil(countdownTimer)
+
+    break;
+
+    case GameState.PLAYING_COUNTDOWN:
+        countdownTimer -= tick // I think the seconds are a little too slow
+
+        if(countdownTimer <= 0) {
             currentGameState = GameState.PLAYING
-            // make everyone un ready
-            // spawn people in different locations
+        }
+
+        backEndHeaderText = "Starting in... "+Math.ceil(countdownTimer)
+
+    break;
+
+    case GameState.PLAYING_FINISHED:
+        countdownTimer -= tick // I think the seconds are a little too slow
+
+        if(countdownTimer <= 0) {
+            currentGameState = GameState.WAITING_ROOM
+            countdownTimer = 60
+            for(const id in backEndPlayers) {
+                // make everyone un ready
+                backEndPlayers[id].eliminated = false
+                backEndPlayers[id].train = {head: null, tail: null, length: 0}
+                backEndPlayers[id].health = 100
+                backEndPlayers[id].maxHealth = 100
+            }
+            for(const id in backEndItems) {
+                delete backEndItems[id]
+            }
         }
 
     break;
@@ -416,7 +477,7 @@ setInterval(() => {
     io.emit('updateItems', backEndItems)
     io.emit('updateProjectiles', backEndProjectiles)
 
-    io.emit('updateTimer', Math.ceil(countdownTimer))
+    io.emit('updateHeaderText', backEndHeaderText)
 
 }, 15)
 

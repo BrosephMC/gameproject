@@ -23,12 +23,12 @@ let particleId = 0
 // });
 
 // let frontEndGameState = GameState.WAITING_ROOM;
-let countdownTimer = 60
+let fronEndHeaderText = ""
 
 const socket = io();
 
-socket.on('updateTimer', (BackEndCountdownTimer) => {
-    countdownTimer = BackEndCountdownTimer
+socket.on('updateHeaderText', (BackEndHeaderText) => {
+    fronEndHeaderText = BackEndHeaderText
 })
 
 socket.on('spawnParticle', (particle) => {
@@ -157,6 +157,7 @@ socket.on('updatePlayers', (backEndPlayers) => {
             frontEndPlayers[id].health = backEndPlayer.health
             frontEndPlayers[id].maxHealth = backEndPlayer.maxHealth
             frontEndPlayers[id].ready = backEndPlayer.ready
+            frontEndPlayers[id].eliminated = backEndPlayer.eliminated
 
             // if it's the client's own player
             if( id === socket.id){
@@ -221,9 +222,11 @@ function animate() {
         }
     }
 
-    c.font = '16px sans-serif'
-    c.fillStyle = 'white'
-    c.fillText("Timer: " + countdownTimer, CANVAS_WIDTH/2 - (c.measureText("Timer: " + countdownTimer).width / 2), 50)
+    if (fronEndHeaderText != "") {
+        c.font = '16px sans-serif'
+        c.fillStyle = 'white'
+        c.fillText(fronEndHeaderText, CANVAS_WIDTH/2 - (c.measureText(fronEndHeaderText).width / 2), 50)
+    }
 }
 
 animate()
