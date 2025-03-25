@@ -14,18 +14,19 @@ const frontEndProjectiles = {}
 const frontEndItems = {}
 const particles = {}
 let particleId = 0
-
-// const GameState = Object.freeze({
-//     WAITING_ROOM: "waiting_room",
-//     PLAYING: "playing",
-//     PLAYING_COUNTDOWN: "playing_countdown",
-//     PLAYING_FINISHED: "playing_finished",
-// });
-
-// let frontEndGameState = GameState.WAITING_ROOM;
 let fronEndHeaderText = ""
 
 const socket = io();
+
+var sfx = {
+    pop: new Howl({
+        src: "assets/sounds/pop.mp3"
+    })
+}
+
+// function PlaySound(soundID){
+//     sfx.soundId.play()
+// }
 
 socket.on('updateHeaderText', (BackEndHeaderText) => {
     fronEndHeaderText = BackEndHeaderText
@@ -55,8 +56,6 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
                 color: backEndProjectile.color, 
             })
         } else {
-            // frontEndProjectiles[id].x += backEndProjectiles[id].velocity.x
-            // frontEndProjectiles[id].y += backEndProjectiles[id].velocity.y
             frontEndProjectiles[id].x = backEndProjectile.x
             frontEndProjectiles[id].y = backEndProjectile.y
         }
@@ -85,8 +84,6 @@ socket.on('updateItems', (backEndItems) => {
                 type: backEndItem.type
             })
         } else {
-            // frontEndItems[id].x += backEndItems[id].velocity.x
-            // frontEndItems[id].y += backEndItems[id].velocity.y
             frontEndItems[id].x = backEndItem.x
             frontEndItems[id].y = backEndItem.y
             frontEndItems[id].highlighted = backEndItem.highlighted
@@ -245,6 +242,7 @@ document.querySelector('#usernameForm').addEventListener('submit', (event) => {
 addEventListener('click', (event) => {
     if(!frontEndPlayers[socket.id]) return
     socket.emit('click')
+    sfx.pop.play();
 })
 
 // looking for mouse movement

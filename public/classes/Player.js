@@ -21,11 +21,9 @@ class Player {
   draw() {
     c.font = '12px sans-serif'
     c.fillStyle = 'white'
+    if(this.eliminated) {c.fillStyle = 'gray'}
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
 
-    if(this.eliminated) {
-      c.fillStyle = 'gray'
-    }
 
     c.save()
     c.translate(this.x, this.y);
