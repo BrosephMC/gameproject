@@ -19,14 +19,26 @@ let fronEndHeaderText = ""
 const socket = io();
 
 var sfx = {
-    pop: new Howl({
-        src: "assets/sounds/pop.mp3"
-    })
+    "pop": new Howl({
+        src: "assets/sounds/pop.mp3",
+    }),
+    "explosion": new Howl({
+        src: "assets/sounds/cannon-shot.mp3",
+    }),
+    "whoosh": new Howl({
+        src: "assets/sounds/whoosh.mp3",
+    }),
 }
 
-// function PlaySound(soundID){
-//     sfx.soundId.play()
-// }
+function playSound(soundId, volume, rate){
+    sfx[soundId].volume(volume)
+    sfx[soundId].rate(rate)
+    sfx[soundId].play()
+}
+
+socket.on('playSound', ({soundId, volume, rate}) => {
+    playSound(soundId, volume, rate)
+})
 
 socket.on('updateHeaderText', (BackEndHeaderText) => {
     fronEndHeaderText = BackEndHeaderText
@@ -242,7 +254,6 @@ document.querySelector('#usernameForm').addEventListener('submit', (event) => {
 addEventListener('click', (event) => {
     if(!frontEndPlayers[socket.id]) return
     socket.emit('click')
-    sfx.pop.play();
 })
 
 // looking for mouse movement

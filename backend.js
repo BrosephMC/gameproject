@@ -66,6 +66,11 @@ io.on('connection', (socket) => {
                         radius: 15,
                         owner: socket.id
                     }
+                    io.emit('playSound', {
+                        soundId: "whoosh", 
+                        volume: 0.5, 
+                        rate: 1
+                    })
                     break
                 case 'heal':
                     console.log("you have healed!")
@@ -85,6 +90,11 @@ io.on('connection', (socket) => {
                         radius: 30,
                         lifepsan: 120
                     })
+                    io.emit('playSound', {
+                        soundId: "explosion", 
+                        volume: 1, 
+                        rate: 1.1
+                    })
                     break
                 default:
                     console.log("It's the default case!")
@@ -97,6 +107,11 @@ io.on('connection', (socket) => {
         case GameState.WAITING_ROOM:
 
             backEndPlayers[socket.id].ready = !backEndPlayers[socket.id].ready
+            io.emit('playSound', {
+                soundId: "pop", 
+                volume: 0.2, 
+                rate: 0.5 + backEndPlayers[socket.id].ready*0.5
+            })
     
         break;
         
@@ -311,6 +326,11 @@ setInterval(() => {
                         type: 'explosion',
                         radius: 30,
                         lifepsan: 120
+                    })
+                    io.emit('playSound', {
+                        soundId: "explosion", 
+                        volume: 1, 
+                        rate: 1.1
                     })
                     console.log("emitted particle")
                 } else {
@@ -544,6 +564,11 @@ function appendItem(playerId, itemId) {
     if(nextItem != null) {
         appendItem(playerId, nextItem)
     }  
+    io.emit('playSound', {
+        soundId: "pop", 
+        volume: 0.1, 
+        rate: 1.1
+    })
 }
 
 function popItem(train) {
