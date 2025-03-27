@@ -25,10 +25,12 @@ let projectileId = 0
 let ItemObjId = 0
 const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 576
-const tick = 0.015
-
+const TICK = 0.015 // I think the seconds are a little too slow
+const DEFAULT_COUNTDOWN = 3 // 3
+const DEFAULT_LONG_COUNTDOWN = 60 // 60
 const SPACING = 30
 const HEALTH_INCREASE_VALUE = 25
+const DEFAULT_MAX_HEALTH = 100 // 100
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -38,7 +40,7 @@ const GameState = Object.freeze({
 });
 
 let currentGameState = GameState.WAITING_ROOM;
-let countdownTimer = 60
+let countdownTimer = DEFAULT_LONG_COUNTDOWN
 let backEndHeaderText
 
 // when user connects
@@ -88,7 +90,7 @@ io.on('connection', (socket) => {
                         y: backEndPlayers[socket.id].y,
                         type: 'explosion',
                         radius: 30,
-                        lifepsan: 120
+                        lifespan: 90
                     })
                     io.emit('playSound', {
                         soundId: "explosion", 
@@ -132,6 +134,9 @@ io.on('connection', (socket) => {
             initMouseY - initY,
             initMouseX - initX
         )
+        let spawnEliminated = true
+        if(currentGameState == GameState.WAITING_ROOM) {spawnEliminated = false;}
+
         backEndPlayers[socket.id] = {
             x: initX,
             y: initY,
@@ -145,8 +150,9 @@ io.on('connection', (socket) => {
             speed: 3,
             radius: RADIUS,
             train: {head: null, tail: null, length: 0},
-            health: 100,
-            maxHealth: 100
+            health: DEFAULT_MAX_HEALTH,
+            maxHealth: DEFAULT_MAX_HEALTH,
+            eliminated: spawnEliminated,
         }
 
         // initCanvas
@@ -222,6 +228,7 @@ function objIsColliding(obj, objList){
 function radiusDetection(obj, objList, radius) {
     outputList = []
     for(const id in objList) {
+        if(objList[id].eliminated) {continue}
         const dx = obj.x - objList[id].x
         const dy = obj.y - objList[id].y
         const radiusSum = obj.radius + objList[id].radius + radius
@@ -260,7 +267,11 @@ setInterval(() => {
 
         // update player movement
         for(const id in backEndPlayers) {
-            if(backEndPlayers[id].health <= 0) backEndPlayers[id].eliminated = true;
+            // player elimination
+            if(!backEndPlayers[id].eliminated && backEndPlayers[id].health <= 0){
+                backEndPlayers[id].eliminated = true;
+                deleteAllItems(backEndPlayers[id].train)
+            } 
             if(backEndPlayers[id].eliminated) continue;
             numAlivePlayers++
 
@@ -325,7 +336,7 @@ setInterval(() => {
                         y: itemY,
                         type: 'explosion',
                         radius: 30,
-                        lifepsan: 120
+                        lifespan: 90
                     })
                     io.emit('playSound', {
                         soundId: "explosion", 
@@ -341,7 +352,7 @@ setInterval(() => {
             // console.log(backEndPlayers[id].train)
 
             // reset maxHealth for recalculation
-            backEndPlayers[id].maxHealth = 100
+            backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
 
             // update item train movement
             if(backEndPlayers[id].train.head != null) {
@@ -413,7 +424,7 @@ setInterval(() => {
         if(numAlivePlayers <= 1) {
             backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
             currentGameState = GameState.PLAYING_FINISHED
-            countdownTimer = 3
+            countdownTimer = DEFAULT_COUNTDOWN
         }
 
     break;
@@ -430,7 +441,10 @@ setInterval(() => {
 
         // if more than 2 players
         if (i >= 2) {
-            countdownTimer -= tick // I think the seconds are a little too slow
+            countdownTimer -= TICK
+        }
+        if (i == 0) {
+            countdownTimer = DEFAULT_LONG_COUNTDOWN
         }
 
         if (readys >= 2 && readys == i && countdownTimer > 3) {
@@ -440,7 +454,7 @@ setInterval(() => {
         // START THE GAME
         if(countdownTimer <= 0) {
             currentGameState = GameState.PLAYING_COUNTDOWN
-            countdownTimer = 3
+            countdownTimer = DEFAULT_COUNTDOWN
 
             for(const id in backEndPlayers) {
                 // make everyone un ready
@@ -458,7 +472,7 @@ setInterval(() => {
     break;
 
     case GameState.PLAYING_COUNTDOWN:
-        countdownTimer -= tick // I think the seconds are a little too slow
+        countdownTimer -= TICK
 
         if(countdownTimer <= 0) {
             currentGameState = GameState.PLAYING
@@ -469,17 +483,17 @@ setInterval(() => {
     break;
 
     case GameState.PLAYING_FINISHED:
-        countdownTimer -= tick // I think the seconds are a little too slow
+        countdownTimer -= TICK
 
         if(countdownTimer <= 0) {
             currentGameState = GameState.WAITING_ROOM
-            countdownTimer = 60
+            countdownTimer = DEFAULT_LONG_COUNTDOWN
             for(const id in backEndPlayers) {
-                // make everyone un ready
+                // make everyone reset
                 backEndPlayers[id].eliminated = false
                 backEndPlayers[id].train = {head: null, tail: null, length: 0}
-                backEndPlayers[id].health = 100
-                backEndPlayers[id].maxHealth = 100
+                backEndPlayers[id].health = DEFAULT_MAX_HEALTH
+                backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
             }
             for(const id in backEndItems) {
                 delete backEndItems[id]
@@ -540,7 +554,6 @@ function appendItem(playerId, itemId) {
         }
 
         delete otherPlayerTrain[itemId]
-        // otherPlayerTrain.length--
     }
 
     if(train.head == null || train.tail == null){
@@ -558,7 +571,6 @@ function appendItem(playerId, itemId) {
         train[train.tail].next = itemId
         train.tail = itemId
     }
-    // train.length++
     backEndItems[itemId].attachedToPlayer = playerId
 
     if(nextItem != null) {
@@ -584,7 +596,6 @@ function popItem(train) {
         train.tail = null
     }
     delete backEndItems[temp]
-    // train.length--
     return
 }
 

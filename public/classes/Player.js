@@ -30,6 +30,7 @@ class Player {
     c.rotate(this.angle);
     c.shadowColor = this.color
     c.shadowBlur = 20
+    if(this.eliminated) {c.shadowColor = 'black'}
 
     c.beginPath()
 
@@ -40,28 +41,31 @@ class Player {
 
     c.closePath()
     c.fillStyle = this.color
+    if(this.eliminated){c.fillStyle = "#303030"}
     c.fill()
     c.restore()
 
-    //Health Bar
-    const healthBarWidth = (this.maxHealth / 100) * DEFAULT_HEALTH_BAR_WIDTH
-    const HBPosX = this.x - (healthBarWidth / 2)
-    const HBPosY = this.y + 15
-    const healthLength = (this.health / this.maxHealth) * healthBarWidth
-
+    if(!this.eliminated){
+      //Health Bar
+      const healthBarWidth = (this.maxHealth / 100) * DEFAULT_HEALTH_BAR_WIDTH
+      const HBPosX = this.x - (healthBarWidth / 2)
+      const HBPosY = this.y + 15
+      const healthLength = (this.health / this.maxHealth) * healthBarWidth
+      
+      // Background (empty health bar)
+      c.fillStyle = "red";
+      c.fillRect(HBPosX + healthLength, HBPosY, healthBarWidth - healthLength, HEALTH_BAR_HEIGHT);
+      
+      // Current health (filled portion)
+      c.fillStyle = "#00ff00"
+      c.fillRect(HBPosX, HBPosY, healthLength, HEALTH_BAR_HEIGHT);
+    }
+    
     //ready indicator
     if(this.ready == true) {
+      c.fillStyle = 'white'
       c.fillText("Ready!", this.x + 25, this.y + this.radius/2)
     }
-
-    // Background (empty health bar)
-    c.fillStyle = "red";
-    c.fillRect(HBPosX + healthLength, HBPosY, healthBarWidth - healthLength, HEALTH_BAR_HEIGHT);
-
-    // Current health (filled portion)
-    c.fillStyle = "#00ff00"
-    c.fillRect(HBPosX, HBPosY, healthLength, HEALTH_BAR_HEIGHT);
-
 
     // debugging text
     // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
