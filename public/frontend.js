@@ -14,7 +14,8 @@ const frontEndProjectiles = {}
 const frontEndItems = {}
 const particles = {}
 let particleId = 0
-let fronEndHeaderText = ""
+let frontEndHeaderText = ""
+let readOnlyGameState = "waiting_room"
 
 const socket = io();
 
@@ -41,7 +42,11 @@ socket.on('playSound', ({soundId, volume, rate}) => {
 })
 
 socket.on('updateHeaderText', (BackEndHeaderText) => {
-    fronEndHeaderText = BackEndHeaderText
+    frontEndHeaderText = BackEndHeaderText
+})
+
+socket.on('updateReadOnlyGameState', (backEndGameState) => {
+    readOnlyGameState = backEndGameState
 })
 
 socket.on('spawnParticle', (particle) => {
@@ -231,10 +236,10 @@ function animate() {
         }
     }
 
-    if (fronEndHeaderText != "") {
+    if (frontEndHeaderText != "") {
         c.font = '16px sans-serif'
         c.fillStyle = 'white'
-        c.fillText(fronEndHeaderText, CANVAS_WIDTH/2 - (c.measureText(fronEndHeaderText).width / 2), 50)
+        c.fillText(frontEndHeaderText, CANVAS_WIDTH/2 - (c.measureText(frontEndHeaderText).width / 2), 50)
     }
 }
 

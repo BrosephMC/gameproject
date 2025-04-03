@@ -31,6 +31,13 @@ const DEFAULT_LONG_COUNTDOWN = 60 // 60
 const SPACING = 30
 const HEALTH_INCREASE_VALUE = 25
 const DEFAULT_MAX_HEALTH = 100 // 100
+const ITEM_SPAWN_DELAY = 120
+const ITEM_SPAWN_LONG_DELAY = 480
+const ITEM_CAP_PP_SHORT = 8
+const ITEM_CAP_PP_LONG = 30
+let spawnItemTimer = ITEM_SPAWN_DELAY
+
+const testingMode = true;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -38,6 +45,23 @@ const GameState = Object.freeze({
     PLAYING_COUNTDOWN: "playing_countdown",
     PLAYING_FINISHED: "playing_finished",
 });
+
+const itemsList = [
+    'heal',
+    'health_increase',
+    'bomb',
+    'rock',
+]
+
+const itemWeightsList = [
+    1,
+    1,
+    1,
+    3,
+]
+
+let addedWeights = itemWeightsList
+for(i = 1; i < addedWeights.length; i++) {addedWeights[i] = addedWeights[i] + addedWeights[i-1]}
 
 let currentGameState = GameState.WAITING_ROOM;
 let countdownTimer = DEFAULT_LONG_COUNTDOWN
@@ -180,36 +204,32 @@ io.on('connection', (socket) => {
 
     // spawn items debug
     socket.on('spawnItemsDebug', () => {
-        backEndItems[ItemObjId++] = {
-            x: CANVAS_WIDTH * Math.random(),
-            y: CANVAS_HEIGHT * Math.random(),
-            radius: 10,
-            attachedToPlayer: null,
-            type: 'rock'
-        }
-        backEndItems[ItemObjId++] = {
-            x: CANVAS_WIDTH * Math.random(),
-            y: CANVAS_HEIGHT * Math.random(),
-            radius: 10,
-            attachedToPlayer: null,
-            type: 'heal'
-        }
-        backEndItems[ItemObjId++] = {
-            x: CANVAS_WIDTH * Math.random(),
-            y: CANVAS_HEIGHT * Math.random(),
-            radius: 10,
-            attachedToPlayer: null,
-            type: 'health_increase'
-        }
-        backEndItems[ItemObjId++] = {
-            x: CANVAS_WIDTH * Math.random(),
-            y: CANVAS_HEIGHT * Math.random(),
-            radius: 10,
-            attachedToPlayer: null,
-            type: 'bomb'
+        if(testingMode){
+            spawnRandomItem();
         }
     })
 })
+
+function spawnRandomItem() {
+    const randomNumber = Math.random() * addedWeights[addedWeights.length-1]
+    let newNumber = null
+
+    // find index from random number
+    for(i = 0; i < addedWeights.length; i++){
+        if(randomNumber <= addedWeights[i]){
+            newNumber = i
+            break
+        }
+    }
+
+    backEndItems[ItemObjId++] = {
+        x: CANVAS_WIDTH * Math.random(),
+        y: CANVAS_HEIGHT * Math.random(),
+        radius: 10,
+        attachedToPlayer: null,
+        type: itemsList[newNumber]
+    }
+}
 
 // collision detection function
 function objIsColliding(obj, objList){
@@ -246,6 +266,25 @@ setInterval(() => {
 
     case GameState.PLAYING:
 
+        // spawn items
+        spawnItemTimer = (spawnItemTimer > -1024) ? spawnItemTimer-1 : spawnItemTimer;
+
+        // might be too inefficient: O(n) for items and players
+        // make timers on a separate 'thread'?
+        const numOfItems = Object.keys(backEndItems).length
+        const numOfPlayers = Object.keys(backEndPlayers).length
+        if(spawnItemTimer <= 0 && numOfItems < numOfPlayers * ITEM_CAP_PP_LONG){
+            if(numOfItems < numOfPlayers * ITEM_CAP_PP_SHORT) {
+                spawnRandomItem()
+                spawnItemTimer = ITEM_SPAWN_DELAY
+            } else {
+                if(spawnItemTimer <= ITEM_SPAWN_DELAY - ITEM_SPAWN_LONG_DELAY){
+                    spawnRandomItem()
+                    spawnItemTimer = ITEM_SPAWN_DELAY
+                }
+            }
+        }
+
         // update projectiles movement
         for(const id in backEndProjectiles){
             const projRadius = backEndProjectiles[id].radius
@@ -267,10 +306,13 @@ setInterval(() => {
 
         // update player movement
         for(const id in backEndPlayers) {
+
             // player elimination
             if(!backEndPlayers[id].eliminated && backEndPlayers[id].health <= 0){
                 backEndPlayers[id].eliminated = true;
-                deleteAllItems(backEndPlayers[id].train)
+                if(backEndPlayers[id].train.head != null){
+                    blowup(backEndPlayers[id].train, backEndPlayers[id].train.head, false, false)
+                }
             } 
             if(backEndPlayers[id].eliminated) continue;
             numAlivePlayers++
@@ -421,10 +463,13 @@ setInterval(() => {
 
         backEndHeaderText = "";
 
-        if(numAlivePlayers <= 1) {
+        if(!testingMode && numAlivePlayers <= 1) {
             backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
             currentGameState = GameState.PLAYING_FINISHED
             countdownTimer = DEFAULT_COUNTDOWN
+        } else
+        if(testingMode && numAlivePlayers <= 0) {
+            currentGameState = GameState.PLAYING_FINISHED
         }
 
     break;
@@ -452,7 +497,7 @@ setInterval(() => {
         }
 
         // START THE GAME
-        if(countdownTimer <= 0) {
+        if(countdownTimer <= 0 || (testingMode && readys >= 1)) {
             currentGameState = GameState.PLAYING_COUNTDOWN
             countdownTimer = DEFAULT_COUNTDOWN
 
@@ -474,7 +519,7 @@ setInterval(() => {
     case GameState.PLAYING_COUNTDOWN:
         countdownTimer -= TICK
 
-        if(countdownTimer <= 0) {
+        if(countdownTimer <= 0 || testingMode) {
             currentGameState = GameState.PLAYING
         }
 
@@ -485,7 +530,7 @@ setInterval(() => {
     case GameState.PLAYING_FINISHED:
         countdownTimer -= TICK
 
-        if(countdownTimer <= 0) {
+        if(countdownTimer <= 0 || testingMode) {
             currentGameState = GameState.WAITING_ROOM
             countdownTimer = DEFAULT_LONG_COUNTDOWN
             for(const id in backEndPlayers) {
@@ -495,9 +540,8 @@ setInterval(() => {
                 backEndPlayers[id].health = DEFAULT_MAX_HEALTH
                 backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
             }
-            for(const id in backEndItems) {
-                delete backEndItems[id]
-            }
+            for(const id in backEndItems) {delete backEndItems[id]}
+            for(const id in backEndProjectiles) {delete backEndProjectiles[id]}
         }
 
     break;
@@ -512,6 +556,7 @@ setInterval(() => {
     io.emit('updateProjectiles', backEndProjectiles)
 
     io.emit('updateHeaderText', backEndHeaderText)
+    io.emit('updateReadOnlyGameState', currentGameState)
 
 }, 15)
 
@@ -609,7 +654,7 @@ function deleteAllItems(train) {
     train = {head: null, tail: null, length: 0}
 }
 
-function blowup(train, itemId, init = false) {
+function blowup(train, itemId, init = false, deleteItem = true) {
     const current = train[itemId]
 
     // main item (bomb) only for first bomb
@@ -620,7 +665,7 @@ function blowup(train, itemId, init = false) {
         } else {
             train[train.tail].next = null
         }
-        delete backEndItems[itemId]
+        if(deleteItem) {delete backEndItems[itemId]}
     }
 
     if(current.next != null){

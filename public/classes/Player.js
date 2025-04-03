@@ -67,6 +67,16 @@ class Player {
       c.fillText("Ready!", this.x + 25, this.y + this.radius/2)
     }
 
+    // if(readOnlyGameState == "waiting_room") {
+    //   // Draw left button
+    //   const size = 15
+    //   c.fillStyle = "white";
+    //   c.fillRect(this.x-size*2-size/2, this.y+size*2-size/2, size, size);
+
+    //   // Draw right button
+    //   c.fillRect(this.x+size*2-size/2, this.y+size*2-size/2, size, size);
+    // }
+
     // debugging text
     // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
     // c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
