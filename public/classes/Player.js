@@ -14,8 +14,8 @@ class Player {
     this.maxHealth = maxHealth
     this.ready = ready
     this.eliminated = eliminated
-    // this.sprite = new Image()
-    // this.sprite.src = "assets/images/player_test_2.png"
+    this.sprite = new Image()
+    this.sprite.src = "assets/images/player_test.png"
   }
 
   draw() {
@@ -35,9 +35,9 @@ class Player {
     c.beginPath()
 
     c.moveTo(this.radius, 0)
-    c.lineTo(-this.radius / 1.5, this.radius / 1.5)
-    c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
-    // c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
+    // c.lineTo(-this.radius / 1.5, this.radius / 1.5)
+    // c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
+    c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
 
     c.closePath()
     c.fillStyle = this.color
