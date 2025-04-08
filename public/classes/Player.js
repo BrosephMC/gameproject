@@ -3,7 +3,7 @@ const DEFAULT_HEALTH_BAR_WIDTH = 30;
 const HEALTH_BAR_HEIGHT = 4;
 
 class Player {
-  constructor({x, y, radius, color, username, angle, health, maxHealth, ready, eliminated}) {
+  constructor({x, y, radius, color, username, angle, health, maxHealth, ready, eliminated, skindex = 0}) {
     this.x = x
     this.y = y
     this.radius = radius
@@ -14,8 +14,9 @@ class Player {
     this.maxHealth = maxHealth
     this.ready = ready
     this.eliminated = eliminated
+    this.skindex = skindex
     this.sprite = new Image()
-    this.sprite.src = "assets/images/player_test.png"
+    this.sprite.src = "assets/images/dummy.png"
   }
 
   draw() {
@@ -24,28 +25,34 @@ class Player {
     if(this.eliminated) {c.fillStyle = 'gray'}
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
 
+    // shadow
+    // c.shadowColor = this.color
+    // c.shadowBlur = 20
+    // if(this.eliminated) {c.shadowColor = 'black'}
 
+    // start drawing
     c.save()
     c.translate(this.x, this.y);
     c.rotate(this.angle);
-    c.shadowColor = this.color
-    c.shadowBlur = 20
-    if(this.eliminated) {c.shadowColor = 'black'}
-
-    c.beginPath()
-
+    c.beginPath();
     c.moveTo(this.radius, 0)
-    // c.lineTo(-this.radius / 1.5, this.radius / 1.5)
-    // c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
-    c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
 
+    // draw player
+    if(this.skindex <= 6){
+      c.fillStyle = playerSkins[this.skindex].split('_')[1];
+      c.lineTo(-this.radius / 1.5, this.radius / 1.5)
+      c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
+    } else {
+      this.sprite.src = "assets/images/"+playerSkins[this.skindex]+".png"
+      c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
+    }
     c.closePath()
-    c.fillStyle = this.color
+
     if(this.eliminated){c.fillStyle = "#303030"}
     c.fill()
     c.restore()
 
-    if(!this.eliminated){
+    if(!this.eliminated && readOnlyGameState != "waiting_room"){
       //Health Bar
       const healthBarWidth = (this.maxHealth / 100) * DEFAULT_HEALTH_BAR_WIDTH
       const HBPosX = this.x - (healthBarWidth / 2)
@@ -61,26 +68,28 @@ class Player {
       c.fillRect(HBPosX, HBPosY, healthLength, HEALTH_BAR_HEIGHT);
     }
     
-    //ready indicator
+    // ready indicator
     if(this.ready == true) {
       c.fillStyle = 'white'
       c.fillText("Ready!", this.x + 25, this.y + this.radius/2)
     }
 
-    // if(readOnlyGameState == "waiting_room") {
-    //   // Draw left button
-    //   const size = 15
-    //   c.fillStyle = "white";
-    //   c.fillRect(this.x-size*2-size/2, this.y+size*2-size/2, size, size);
-
-    //   // Draw right button
-    //   c.fillRect(this.x+size*2-size/2, this.y+size*2-size/2, size, size);
-    // }
-
     // debugging text
     // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
     // c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
-    // c.fillText("x:"+ this.health, this.x - (c.measureText(this.x).width / 2), this.y + 65)
-    // c.fillText("y:"+ this.maxHealth, this.x - (c.measureText(this.y).width / 2), this.y + 75)
+    // c.fillText("x:"+ this.x, this.x - (c.measureText(this.x).width / 2), this.y + 65)
+    // c.fillText("y:"+ this.y, this.x - (c.measureText(this.y).width / 2), this.y + 75)
+    // c.fillText("skindex:"+ this.skindex, this.x - (c.measureText(this.y).width / 2), this.y + 85)
+  }
+
+  drawPlayerHighlight(){
+    // ring
+    const pulse = 10 + Math.sin(Date.now() / 200) * 3; // Pulse radius
+    c.strokeStyle = 'white'
+    c.lineWidth = 1;
+    c.beginPath()
+    c.arc(this.x, this.y, this.radius + pulse, 0, Math.PI * 2);
+    c.stroke();
+    c.closePath();
   }
 }

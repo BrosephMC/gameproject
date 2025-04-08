@@ -19,6 +19,43 @@ let readOnlyGameState = "waiting_room"
 
 const socket = io();
 
+const playerSkins = [
+    "TRI_firebrick",
+    "TRI_orange",
+    "TRI_yellow",
+    "TRI_green",
+    "TRI_steelblue",
+    "TRI_deepskyblue",
+    "TRI_purple",
+    "player_test",
+    "ratPlayer",
+    "explosion"
+]
+
+const frontEndButtons = {
+    left_button: new Button({
+        x: CANVAS_WIDTH/2-80-32,
+        y: CANVAS_HEIGHT-80,
+        width: 64,
+        height: 64,
+        type: "left_button",
+    }),
+    right_button: new Button({
+        x: CANVAS_WIDTH/2+80-32,
+        y: CANVAS_HEIGHT-80,
+        width: 64,
+        height: 64,
+        type: "right_button",
+    }),
+    ready_button: new Button({
+        x: CANVAS_WIDTH/2-32,
+        y: CANVAS_HEIGHT-80,
+        width: 64,
+        height: 64,
+        type: "ready_button",
+    })
+}
+
 var sfx = {
     "pop": new Howl({
         src: "assets/sounds/pop.mp3",
@@ -172,11 +209,14 @@ socket.on('updatePlayers', (backEndPlayers) => {
             frontEndPlayers[id].maxHealth = backEndPlayer.maxHealth
             frontEndPlayers[id].ready = backEndPlayer.ready
             frontEndPlayers[id].eliminated = backEndPlayer.eliminated
+            frontEndPlayers[id].skindex = backEndPlayer.skindex
 
             // if it's the client's own player
-            if( id === socket.id){
-
-            } 
+            if(id === socket.id){
+                frontEndPlayers[id].isClient = true
+            } else {
+                frontEndPlayers[id].isClient = false
+            }
         }
     }
 
@@ -220,6 +260,9 @@ function animate() {
             frontEndPlayers[id].y += 
                 (frontEndPlayers[id].target.y - frontEndPlayers[id].y) * 0.5
         }
+        if(frontEndPlayer.isClient && readOnlyGameState == "waiting_room" && !frontEndPlayer.ready){
+            frontEndPlayer.drawPlayerHighlight()
+        }
         frontEndPlayer.draw()
     }
 
@@ -233,6 +276,12 @@ function animate() {
         // Remove particle if its life is over
         if (particle.lifespan <= 0) {
             delete particles[id];
+        }
+    }
+
+    if(readOnlyGameState == "waiting_room"){
+        for(const id in frontEndButtons) {
+            frontEndButtons[id].draw()
         }
     }
 
@@ -256,9 +305,32 @@ document.querySelector('#usernameForm').addEventListener('submit', (event) => {
     )
 })
 
-addEventListener('click', (event) => {
+document.addEventListener('click', (event) => {
     if(!frontEndPlayers[socket.id]) return
     socket.emit('click')
+
+    if(readOnlyGameState == "waiting_room") {
+        const {top, left} = canvas.getBoundingClientRect()
+        mouseX = event.clientX - left;
+        mouseY = event.clientY - top;
+
+        for(const id in frontEndButtons){
+            if(frontEndButtons[id].hover(mouseX, mouseY)){
+                switch (frontEndButtons[id].type) {
+                    case "left_button":
+                        socket.emit('updateSkindex', {dir: 1, length: playerSkins.length});
+                    break;
+                    case "right_button":
+                        socket.emit('updateSkindex', {dir: 0, length: playerSkins.length});
+                    break;
+                    case "ready_button":
+                        socket.emit('readyUp');
+                    break;
+                    default:
+                }
+            }
+        }
+    }
 })
 
 // looking for mouse movement

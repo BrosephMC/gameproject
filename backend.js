@@ -37,7 +37,7 @@ const ITEM_CAP_PP_SHORT = 8
 const ITEM_CAP_PP_LONG = 30
 let spawnItemTimer = ITEM_SPAWN_DELAY
 
-const testingMode = true;
+const testingMode = false;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -131,13 +131,6 @@ io.on('connection', (socket) => {
         break;
 
         case GameState.WAITING_ROOM:
-
-            backEndPlayers[socket.id].ready = !backEndPlayers[socket.id].ready
-            io.emit('playSound', {
-                soundId: "pop", 
-                volume: 0.2, 
-                rate: 0.5 + backEndPlayers[socket.id].ready*0.5
-            })
     
         break;
         
@@ -177,6 +170,7 @@ io.on('connection', (socket) => {
             health: DEFAULT_MAX_HEALTH,
             maxHealth: DEFAULT_MAX_HEALTH,
             eliminated: spawnEliminated,
+            skindex: 0,
         }
 
         // initCanvas
@@ -200,6 +194,28 @@ io.on('connection', (socket) => {
         backEndPlayers[socket.id].angle = angle
         backEndPlayers[socket.id].mouseX = mouseX
         backEndPlayers[socket.id].mouseY = mouseY
+    })
+
+    // change skin
+    socket.on('updateSkindex', ({dir, length}) => {
+        if(dir == 1){
+            backEndPlayers[socket.id].skindex = (backEndPlayers[socket.id].skindex - 1 + length) % length;
+        } else {
+            backEndPlayers[socket.id].skindex = (backEndPlayers[socket.id].skindex + 1) % length;
+        }
+    })
+
+    // ready up
+    socket.on('readyUp', () => {
+        console.log("ready")
+        if(currentGameState == GameState.WAITING_ROOM){
+            backEndPlayers[socket.id].ready = !backEndPlayers[socket.id].ready
+            io.emit('playSound', {
+                soundId: "pop", 
+                volume: 0.2, 
+                rate: 0.5 + backEndPlayers[socket.id].ready*0.5
+            })
+        }
     })
 
     // spawn items debug
@@ -508,8 +524,10 @@ setInterval(() => {
                 // spawn people in different locations
                 backEndPlayers[id].x = CANVAS_WIDTH * Math.random()
                 backEndPlayers[id].y = CANVAS_HEIGHT * Math.random()
-            }
 
+                spawnRandomItem()
+                spawnRandomItem()
+            }
         }
 
         backEndHeaderText = "Timer: "+Math.ceil(countdownTimer)
