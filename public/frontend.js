@@ -19,18 +19,7 @@ let readOnlyGameState = "waiting_room"
 
 const socket = io();
 
-const playerSkins = [
-    "TRI_firebrick",
-    "TRI_orange",
-    "TRI_yellow",
-    "TRI_green",
-    "TRI_steelblue",
-    "TRI_deepskyblue",
-    "TRI_purple",
-    "player_test",
-    "ratPlayer",
-    "explosion"
-]
+let playerSkins = [] // grabbed from the back end
 
 const frontEndButtons = {
     left_button: new Button({
@@ -78,14 +67,6 @@ socket.on('playSound', ({soundId, volume, rate}) => {
     playSound(soundId, volume, rate)
 })
 
-socket.on('updateHeaderText', (BackEndHeaderText) => {
-    frontEndHeaderText = BackEndHeaderText
-})
-
-socket.on('updateReadOnlyGameState', (backEndGameState) => {
-    readOnlyGameState = backEndGameState
-})
-
 socket.on('spawnParticle', (particle) => {
     particles[particleId++] = new Particle({
         x: particle.x,
@@ -94,6 +75,18 @@ socket.on('spawnParticle', (particle) => {
         type: particle.type,
         lifespan: particle.lifespan
     })
+})
+
+socket.on('updateHeaderText', (BackEndHeaderText) => {
+    frontEndHeaderText = BackEndHeaderText
+})
+
+socket.on('updateReadOnlyGameState', (backEndGameState) => {
+    readOnlyGameState = backEndGameState
+})
+
+socket.on('updatePlayerSkins', (backEndPlayerSkins) => {
+    playerSkins = backEndPlayerSkins
 })
 
 // receive update from server
@@ -263,7 +256,11 @@ function animate() {
         if(frontEndPlayer.isClient && readOnlyGameState == "waiting_room" && !frontEndPlayer.ready){
             frontEndPlayer.drawPlayerHighlight()
         }
+        if(readOnlyGameState == "playing" && frontEndPlayer.isClient && frontEndPlayer.eliminated ){
+            frontEndHeaderText = "You are eliminated! Wait until the round finishes."
+        }
         frontEndPlayer.draw()
+
     }
 
     for(const id in particles) {
@@ -288,6 +285,7 @@ function animate() {
     if (frontEndHeaderText != "") {
         c.font = '16px sans-serif'
         c.fillStyle = 'white'
+        if(frontEndHeaderText.split(" ")[1] <= 10) {c.fillStyle = 'orange'}
         c.fillText(frontEndHeaderText, CANVAS_WIDTH/2 - (c.measureText(frontEndHeaderText).width / 2), 50)
     }
 }

@@ -7,7 +7,7 @@ const server = http.createServer(app)
 const { Server } = require('socket.io')
 const io = new Server(server, { pingInterval: 2000, pingTimeout: 5000 })
 
-const port = 3000;
+const port = 80;
 
 app.use(express.static('public'))
 
@@ -19,7 +19,6 @@ const backEndPlayers = {}
 const backEndProjectiles = {}
 const backEndItems = {}
 
-const SPEED = 5
 const RADIUS = 10
 let projectileId = 0
 let ItemObjId = 0
@@ -46,11 +45,27 @@ const GameState = Object.freeze({
     PLAYING_FINISHED: "playing_finished",
 });
 
+const playerSkins = [
+    "TRI_crimson",
+    "TRI_orange",
+    "TRI_yellow",
+    "TRI_limegreen",
+    "TRI_deepskyblue",
+    "TRI_blueviolet",
+    "TRI_blanchedalmond",
+    "player_test",
+    "ratPlayer",
+    "explosion"
+]
+
 const itemsList = [
     'heal',
     'health_increase',
     'bomb',
     'rock',
+    'health_increase_mult',
+    'shotgun',
+    'attack_mult',
 ]
 
 const itemWeightsList = [
@@ -58,6 +73,9 @@ const itemWeightsList = [
     1,
     1,
     3,
+    1,
+    1,
+    1,
 ]
 
 let addedWeights = itemWeightsList
@@ -72,15 +90,17 @@ io.on('connection', (socket) => {
     console.log(socket.id+' has connected')
 
     io.emit('updatePlayers', backEndPlayers)
+    io.emit('updatePlayerSkins', playerSkins)
 
     socket.on('click', () => {
         switch (currentGameState) {
         case GameState.PLAYING:
 
             if (backEndPlayers[socket.id].train.head == null) return
+
+            
             switch(backEndItems[backEndPlayers[socket.id].train.head].type) {
                 case 'rock':
-                    console.log("you have a rock!")
                     const xValue = Math.cos(backEndPlayers[socket.id].angle)
                     const yValue = Math.sin(backEndPlayers[socket.id].angle)
                     backEndProjectiles[projectileId++] = {
@@ -90,7 +110,8 @@ io.on('connection', (socket) => {
                         velY: yValue * 20,
                         damage: 20,
                         radius: 15,
-                        owner: socket.id
+                        owner: socket.id,
+                        color: 'white'
                     }
                     io.emit('playSound', {
                         soundId: "whoosh", 
@@ -98,16 +119,35 @@ io.on('connection', (socket) => {
                         rate: 1
                     })
                     break
+                case 'shotgun':
+                    for(i = -2; i <= 2; i++){
+                        const xValue = Math.cos(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
+                        const yValue = Math.sin(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
+                        backEndProjectiles[projectileId++] = {
+                            x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
+                            y: backEndPlayers[socket.id].y + yValue * 15,
+                            velX: xValue * 20,
+                            velY: yValue * 20,
+                            damage: 10,
+                            radius: 10,
+                            owner: socket.id,
+                            color: 'lightgray'
+                        }
+                    }
+                    io.emit('playSound', {
+                        soundId: "whoosh", 
+                        volume: 0.5, 
+                        rate: 0.8
+                    })
+                    break
                 case 'heal':
-                    console.log("you have healed!")
                     healPlayer(socket.id, 30)
                     break
                 case 'bomb':
-                    console.log("you blew up")
-                    healPlayer(socket.id, -30)
+                    // healPlayer(socket.id, -30)
                     const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
                     for(i in casualties) {
-                        healPlayer(casualties[i], -20)
+                        healPlayer(casualties[i], Math.floor(-30*backEndPlayers[socket.id].attackMult))
                     }
                     io.emit('spawnParticle', {
                         x: backEndPlayers[socket.id].x,
@@ -158,7 +198,6 @@ io.on('connection', (socket) => {
             x: initX,
             y: initY,
             color: `hsl(${360 * Math.random()}, 100%, 50%)`,
-            sequenceNumber: 0,
             score: 0,
             username: username,
             angle: initAngle,
@@ -170,7 +209,10 @@ io.on('connection', (socket) => {
             health: DEFAULT_MAX_HEALTH,
             maxHealth: DEFAULT_MAX_HEALTH,
             eliminated: spawnEliminated,
-            skindex: 0,
+            skindex: Math.floor(Math.random() * playerSkins.length),
+            ready: false,
+            attackMult: 1,
+            maxHealthMult: 1,
         }
 
         // initCanvas
@@ -372,7 +414,8 @@ setInterval(() => {
             // Projectile collision
             const colProjId = objIsColliding(backEndPlayers[id], backEndProjectiles)
             if(colProjId != null){
-                healPlayer(id, -backEndProjectiles[colProjId].damage)
+                if(backEndProjectiles[colProjId].owner == null) return
+                healPlayer(id, Math.floor(-backEndProjectiles[colProjId].damage*backEndPlayers[backEndProjectiles[colProjId].owner].attackMult))
                 delete backEndProjectiles[colProjId]
                 console.log("collided with projecitle " + colProjId)
             }
@@ -387,7 +430,7 @@ setInterval(() => {
                     const itemX = backEndItems[colId].x
                     const itemY = backEndItems[colId].y
                     blowup(backEndPlayers[otherPlayerId].train, colId)
-                    healPlayer(id, -90)
+                    healPlayer(id, Math.floor(-90*backEndPlayers[otherPlayerId].attackMult))
                     console.log("you blew up on item " + colId)
                     io.emit('spawnParticle', {
                         x: itemX,
@@ -409,8 +452,10 @@ setInterval(() => {
             }
             // console.log(backEndPlayers[id].train)
 
-            // reset maxHealth for recalculation
+            // reset stats for recalculation
             backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
+            backEndPlayers[id].maxHealthMult = 1
+            backEndPlayers[id].attackMult = 1
 
             // update item train movement
             if(backEndPlayers[id].train.head != null) {
@@ -443,6 +488,12 @@ setInterval(() => {
                     // check for passive item effects
                     if(backEndItems[prevId].type == 'health_increase') {
                         backEndPlayers[id].maxHealth += HEALTH_INCREASE_VALUE
+                    } else 
+                    if(backEndItems[prevId].type == 'health_increase_mult') {
+                        backEndPlayers[id].maxHealthMult += 0.25
+                    } else 
+                    if(backEndItems[prevId].type == 'attack_mult') {
+                        backEndPlayers[id].attackMult += 0.25
                     }
 
                     if (nextId !== null) {
@@ -468,6 +519,8 @@ setInterval(() => {
                 }
             }
 
+            backEndPlayers[id].maxHealth = Math.floor(backEndPlayers[id].maxHealth * backEndPlayers[id].maxHealthMult)
+
             // clamp health if maxHealth is removed
             if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
                 backEndPlayers[id].health = backEndPlayers[id].maxHealth
@@ -481,6 +534,7 @@ setInterval(() => {
 
         if(!testingMode && numAlivePlayers <= 1) {
             backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
+            backEndPlayers[lastPlayerId].score++
             currentGameState = GameState.PLAYING_FINISHED
             countdownTimer = DEFAULT_COUNTDOWN
         } else
@@ -531,6 +585,7 @@ setInterval(() => {
         }
 
         backEndHeaderText = "Timer: "+Math.ceil(countdownTimer)
+        if(i <= 1) {backEndHeaderText = "Waiting for more players..."}
 
     break;
 

@@ -38,17 +38,18 @@ class Player {
     c.moveTo(this.radius, 0)
 
     // draw player
-    if(this.skindex <= 6){
-      c.fillStyle = playerSkins[this.skindex].split('_')[1];
-      c.lineTo(-this.radius / 1.5, this.radius / 1.5)
-      c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
-    } else {
-      this.sprite.src = "assets/images/"+playerSkins[this.skindex]+".png"
-      c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
+    if(!this.eliminated){
+      if(playerSkins[this.skindex].includes("TRI_")){
+        c.fillStyle = playerSkins[this.skindex].split('_')[1];
+        c.lineTo(-this.radius / 1.5, this.radius / 1.5)
+        c.lineTo(-this.radius / 1.5, -this.radius / 1.5)
+      } else {
+        this.sprite.src = "assets/images/"+playerSkins[this.skindex]+".png"
+        c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
+      }
     }
     c.closePath()
 
-    if(this.eliminated){c.fillStyle = "#303030"}
     c.fill()
     c.restore()
 
@@ -77,9 +78,9 @@ class Player {
     // debugging text
     // c.fillText("health:"+ this.health, this.x - (c.measureText(this.username).width / 2), this.y + 45)
     // c.fillText("maxHealth:"+ this.maxHealth, this.x - (c.measureText(this.username).width / 2), this.y + 55)
-    // c.fillText("x:"+ this.x, this.x - (c.measureText(this.x).width / 2), this.y + 65)
-    // c.fillText("y:"+ this.y, this.x - (c.measureText(this.y).width / 2), this.y + 75)
-    // c.fillText("skindex:"+ this.skindex, this.x - (c.measureText(this.y).width / 2), this.y + 85)
+    // c.fillText("x:"+ Math.floor(this.x), this.x - (c.measureText(Math.floor(this.x)).width / 2), this.y + 65)
+    // c.fillText("y:"+ Math.floor(this.y), this.x - (c.measureText(Math.floor(this.y)).width / 2), this.y + 75)
+    // c.fillText("skindex:"+ this.skindex, this.x - (c.measureText(this.skindex).width / 2), this.y + 85)
   }
 
   drawPlayerHighlight(){
