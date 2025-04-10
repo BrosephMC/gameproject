@@ -7,7 +7,7 @@ const server = http.createServer(app)
 const { Server } = require('socket.io')
 const io = new Server(server, { pingInterval: 2000, pingTimeout: 5000 })
 
-const port = 80;
+const port = 3000;
 
 app.use(express.static('public'))
 
