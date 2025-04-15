@@ -3,7 +3,7 @@ const DEFAULT_HEALTH_BAR_WIDTH = 30;
 const HEALTH_BAR_HEIGHT = 4;
 
 class Player {
-  constructor({x, y, radius, color, username, angle, health, maxHealth, ready, eliminated, skindex = 0}) {
+  constructor({x, y, radius, color, username, angle, health, maxHealth, ready, eliminated, speed, skindex = 0}) {
     this.x = x
     this.y = y
     this.radius = radius
@@ -14,6 +14,7 @@ class Player {
     this.maxHealth = maxHealth
     this.ready = ready
     this.eliminated = eliminated
+    this.speed = speed
     this.skindex = skindex
     this.sprite = new Image()
     this.sprite.src = "assets/images/dummy.png"
@@ -23,6 +24,7 @@ class Player {
     c.font = '12px sans-serif'
     c.fillStyle = 'white'
     if(this.eliminated) {c.fillStyle = 'gray'}
+    if(this.speed == 5) {c.fillStyle = 'aqua'} // fast speed
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
 
     // shadow

@@ -35,8 +35,9 @@ const ITEM_SPAWN_LONG_DELAY = 480
 const ITEM_CAP_PP_SHORT = 8
 const ITEM_CAP_PP_LONG = 30
 let spawnItemTimer = ITEM_SPAWN_DELAY
+const PLAYER_SPEED = 3
 
-const testingMode = false;
+const testingMode = true;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -52,10 +53,12 @@ const playerSkins = [
     "TRI_limegreen",
     "TRI_deepskyblue",
     "TRI_blueviolet",
-    "TRI_blanchedalmond",
+    "TRI_white",
     "player_test",
     "ratPlayer",
-    "explosion"
+    "NewDuck",
+    "rocketPlayer",
+    "hamster",
 ]
 
 const itemsList = [
@@ -63,16 +66,16 @@ const itemsList = [
     'health_increase',
     'bomb',
     'rock',
-    'health_increase_mult',
     'shotgun',
     'attack_mult',
+    'speed_boost',
 ]
 
 const itemWeightsList = [
     1,
     1,
     1,
-    3,
+    3, // rock
     1,
     1,
     1,
@@ -98,7 +101,6 @@ io.on('connection', (socket) => {
 
             if (backEndPlayers[socket.id].train.head == null) return
 
-            
             switch(backEndItems[backEndPlayers[socket.id].train.head].type) {
                 case 'rock':
                     const xValue = Math.cos(backEndPlayers[socket.id].angle)
@@ -162,6 +164,9 @@ io.on('connection', (socket) => {
                         rate: 1.1
                     })
                     break
+                case 'speed_boost':
+                    backEndPlayers[socket.id].speedBoostTime = 180
+                break
                 default:
                     console.log("It's the default case!")
                     break
@@ -203,7 +208,8 @@ io.on('connection', (socket) => {
             angle: initAngle,
             mouseX: initMouseX,
             mouseY: initMouseY,
-            speed: 3,
+            speed: PLAYER_SPEED,
+            speedBoostTime: 0,
             radius: RADIUS,
             train: {head: null, tail: null, length: 0},
             health: DEFAULT_MAX_HEALTH,
@@ -212,7 +218,6 @@ io.on('connection', (socket) => {
             skindex: Math.floor(Math.random() * playerSkins.length),
             ready: false,
             attackMult: 1,
-            maxHealthMult: 1,
         }
 
         // initCanvas
@@ -365,6 +370,13 @@ setInterval(() => {
         // update player movement
         for(const id in backEndPlayers) {
 
+            // speed control
+            if(backEndPlayers[id].speedBoostTime > 0) {
+                backEndPlayers[id].speed = 5
+            } else {
+                backEndPlayers[id].speed = PLAYER_SPEED
+            }
+
             // player elimination
             if(!backEndPlayers[id].eliminated && backEndPlayers[id].health <= 0){
                 backEndPlayers[id].eliminated = true;
@@ -375,6 +387,7 @@ setInterval(() => {
             if(backEndPlayers[id].eliminated) continue;
             numAlivePlayers++
 
+            // player movement
             let dx = backEndPlayers[id].mouseX - backEndPlayers[id].x
             let dy = backEndPlayers[id].mouseY - backEndPlayers[id].y
             let distance = Math.sqrt(dx * dx + dy * dy)
@@ -391,6 +404,12 @@ setInterval(() => {
                 backEndPlayers[id].y += (dy / speedDivisor) * backEndPlayers[id].speed
             }
 
+            // speed control
+            if(backEndPlayers[id].speedBoostTime > 0) {
+                backEndPlayers[id].speedBoostTime--
+            }
+
+            // border collision
             const playerSides = {
                 left: backEndPlayers[id].x - backEndPlayers[id].radius,
                 right: backEndPlayers[id].x + backEndPlayers[id].radius,
@@ -452,9 +471,8 @@ setInterval(() => {
             }
             // console.log(backEndPlayers[id].train)
 
-            // reset stats for recalculation
+            // reset health and attack stats for recalculation
             backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
-            backEndPlayers[id].maxHealthMult = 1
             backEndPlayers[id].attackMult = 1
 
             // update item train movement
@@ -489,9 +507,6 @@ setInterval(() => {
                     if(backEndItems[prevId].type == 'health_increase') {
                         backEndPlayers[id].maxHealth += HEALTH_INCREASE_VALUE
                     } else 
-                    if(backEndItems[prevId].type == 'health_increase_mult') {
-                        backEndPlayers[id].maxHealthMult += 0.25
-                    } else 
                     if(backEndItems[prevId].type == 'attack_mult') {
                         backEndPlayers[id].attackMult += 0.25
                     }
@@ -518,8 +533,6 @@ setInterval(() => {
                     prevId = nextId;
                 }
             }
-
-            backEndPlayers[id].maxHealth = Math.floor(backEndPlayers[id].maxHealth * backEndPlayers[id].maxHealthMult)
 
             // clamp health if maxHealth is removed
             if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
