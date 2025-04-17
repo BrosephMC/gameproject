@@ -37,7 +37,7 @@ const ITEM_CAP_PP_LONG = 30
 let spawnItemTimer = ITEM_SPAWN_DELAY
 const PLAYER_SPEED = 3
 
-const testingMode = true;
+const testingMode = false;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
