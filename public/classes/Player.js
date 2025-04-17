@@ -25,6 +25,7 @@ class Player {
     c.fillStyle = 'white'
     if(this.eliminated) {c.fillStyle = 'gray'}
     if(this.speed == 5) {c.fillStyle = 'aqua'} // fast speed
+    if(this.speed == 0) {c.fillStyle = 'tan'} // slow speed
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
 
     // shadow

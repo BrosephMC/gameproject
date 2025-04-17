@@ -134,6 +134,10 @@ socket.on('updateItems', (backEndItems) => {
             frontEndItems[id].x = backEndItem.x
             frontEndItems[id].y = backEndItem.y
             frontEndItems[id].highlighted = backEndItem.highlighted
+            if(frontEndItems[id].type != backEndItem.type){
+                frontEndItems[id].type = backEndItem.type
+                frontEndItems[id].updateSprite()
+            }
         }
     }
 

@@ -69,16 +69,22 @@ const itemsList = [
     'shotgun',
     'attack_mult',
     'speed_boost',
+    'stun',
+    'weaken',
+    'clone',
 ]
 
 const itemWeightsList = [
-    1,
-    1,
-    1,
+    1, // heal
+    1, // health_increase
+    1, // bomb
     3, // rock
-    1,
-    1,
-    1,
+    1, // shotgun
+    1, // attack_mult
+    1, // speed_boost
+    1, // stun
+    1, // weaken
+    10, // clone
 ]
 
 let addedWeights = itemWeightsList
@@ -143,10 +149,9 @@ io.on('connection', (socket) => {
                     })
                     break
                 case 'heal':
-                    healPlayer(socket.id, 30)
+                    healPlayer(socket.id, 40)
                     break
                 case 'bomb':
-                    // healPlayer(socket.id, -30)
                     const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
                     for(i in casualties) {
                         healPlayer(casualties[i], Math.floor(-30*backEndPlayers[socket.id].attackMult))
@@ -165,7 +170,12 @@ io.on('connection', (socket) => {
                     })
                     break
                 case 'speed_boost':
-                    backEndPlayers[socket.id].speedBoostTime = 180
+                    backEndPlayers[socket.id].modSpeed = 5
+                    backEndPlayers[socket.id].modSpeedTime = 180
+                break
+                case 'stun':
+                    backEndPlayers[socket.id].modSpeed = 0
+                    backEndPlayers[socket.id].modSpeedTime = 120
                 break
                 default:
                     console.log("It's the default case!")
@@ -209,7 +219,8 @@ io.on('connection', (socket) => {
             mouseX: initMouseX,
             mouseY: initMouseY,
             speed: PLAYER_SPEED,
-            speedBoostTime: 0,
+            modSpeed: 0,
+            modSpeedTime: 0,
             radius: RADIUS,
             train: {head: null, tail: null, length: 0},
             health: DEFAULT_MAX_HEALTH,
@@ -371,8 +382,8 @@ setInterval(() => {
         for(const id in backEndPlayers) {
 
             // speed control
-            if(backEndPlayers[id].speedBoostTime > 0) {
-                backEndPlayers[id].speed = 5
+            if(backEndPlayers[id].modSpeedTime > 0) {
+                backEndPlayers[id].speed = backEndPlayers[id].modSpeed
             } else {
                 backEndPlayers[id].speed = PLAYER_SPEED
             }
@@ -405,8 +416,8 @@ setInterval(() => {
             }
 
             // speed control
-            if(backEndPlayers[id].speedBoostTime > 0) {
-                backEndPlayers[id].speedBoostTime--
+            if(backEndPlayers[id].modSpeedTime > 0) {
+                backEndPlayers[id].modSpeedTime--
             }
 
             // border collision
@@ -508,7 +519,11 @@ setInterval(() => {
                         backEndPlayers[id].maxHealth += HEALTH_INCREASE_VALUE
                     } else 
                     if(backEndItems[prevId].type == 'attack_mult') {
-                        backEndPlayers[id].attackMult += 0.25
+                        backEndPlayers[id].attackMult += 0.5
+                    } else 
+                    if(backEndItems[prevId].type == 'weaken') {
+                        backEndPlayers[id].attackMult -= 0.5
+                        backEndPlayers[id].maxHealth -= HEALTH_INCREASE_VALUE
                     }
 
                     if (nextId !== null) {
@@ -661,6 +676,13 @@ function appendItem(playerId, itemId) {
     // add health when picking up health_increase
     if(backEndItems[itemId].type == 'health_increase') {
         backEndPlayers[playerId].health += HEALTH_INCREASE_VALUE
+    } else
+    if(backEndItems[itemId].type == 'clone') {
+        console.log("hi there")
+        console.log("here is the type: ",backEndItems[itemId].type)
+        console.log("here is the tail: ",train.tail)
+        backEndItems[itemId].type = (train.tail != null) ? backEndItems[train.tail].type : "dummy"
+        console.log("here is the type: ",backEndItems[itemId].type)
     }
     
     let nextItem = null
@@ -760,6 +782,7 @@ function blowup(train, itemId, init = false, deleteItem = true) {
 
     if(backEndItems[itemId] != null){
         backEndItems[itemId].attachedToPlayer = null
+        backEndItems[itemId].highlighted = false
         backEndItems[itemId].x += (30 * Math.random()) - 15
         backEndItems[itemId].y += (30 * Math.random()) - 15
     }
