@@ -1,11 +1,11 @@
 class Projectile {
-    constructor({x, y, radius = 5, color = 'white', velX, velY}) {
+    constructor({x, y, velX, velY, radius = 5, color = 'white'}) {
       this.x = x
       this.y = y
-      this.radius = radius
-      this.color = color
       this.velX = velX
       this.velY = velY
+      this.radius = radius
+      this.color = color
     }
   
     draw() {

@@ -36,8 +36,9 @@ const ITEM_CAP_PP_SHORT = 8
 const ITEM_CAP_PP_LONG = 30
 let spawnItemTimer = ITEM_SPAWN_DELAY
 const PLAYER_SPEED = 3
+const MELEE_ATTACK_RADIUS = 30
 
-const testingMode = false;
+const testingMode = true;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -72,19 +73,23 @@ const itemsList = [
     'stun',
     'weaken',
     'clone',
+    'melee_ring',
+    'taser',
 ]
 
 const itemWeightsList = [
     1, // heal
     1, // health_increase
     1, // bomb
-    3, // rock
+    1, // rock
     1, // shotgun
     1, // attack_mult
     1, // speed_boost
     1, // stun
     1, // weaken
-    10, // clone
+    1, // clone
+    1, // melee ring
+    1, // taser
 ]
 
 let addedWeights = itemWeightsList
@@ -107,16 +112,19 @@ io.on('connection', (socket) => {
 
             if (backEndPlayers[socket.id].train.head == null) return
 
+            let xValue;
+            let yValue;
+
             switch(backEndItems[backEndPlayers[socket.id].train.head].type) {
                 case 'rock':
-                    const xValue = Math.cos(backEndPlayers[socket.id].angle)
-                    const yValue = Math.sin(backEndPlayers[socket.id].angle)
+                    xValue = Math.cos(backEndPlayers[socket.id].angle)
+                    yValue = Math.sin(backEndPlayers[socket.id].angle)
                     backEndProjectiles[projectileId++] = {
                         x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
                         y: backEndPlayers[socket.id].y + yValue * 15,
                         velX: xValue * 20,
                         velY: yValue * 20,
-                        damage: 20,
+                        damage: 40,
                         radius: 15,
                         owner: socket.id,
                         color: 'white'
@@ -129,14 +137,14 @@ io.on('connection', (socket) => {
                     break
                 case 'shotgun':
                     for(i = -2; i <= 2; i++){
-                        const xValue = Math.cos(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
-                        const yValue = Math.sin(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
+                        xValue = Math.cos(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
+                        yValue = Math.sin(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
                         backEndProjectiles[projectileId++] = {
                             x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
                             y: backEndPlayers[socket.id].y + yValue * 15,
                             velX: xValue * 20,
                             velY: yValue * 20,
-                            damage: 10,
+                            damage: 25,
                             radius: 10,
                             owner: socket.id,
                             color: 'lightgray'
@@ -154,7 +162,7 @@ io.on('connection', (socket) => {
                 case 'bomb':
                     const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
                     for(i in casualties) {
-                        healPlayer(casualties[i], Math.floor(-30*backEndPlayers[socket.id].attackMult))
+                        healPlayer(casualties[i], Math.floor(-40*backEndPlayers[socket.id].attackMult))
                     }
                     io.emit('spawnParticle', {
                         x: backEndPlayers[socket.id].x,
@@ -176,6 +184,29 @@ io.on('connection', (socket) => {
                 case 'stun':
                     backEndPlayers[socket.id].modSpeed = 0
                     backEndPlayers[socket.id].modSpeedTime = 120
+                break
+                case 'melee_ring':
+                    backEndPlayers[socket.id].meleeAttackTime = 180
+                break
+                case 'taser':
+                    xValue = Math.cos(backEndPlayers[socket.id].angle)
+                    yValue = Math.sin(backEndPlayers[socket.id].angle)
+                    backEndProjectiles[projectileId++] = {
+                        x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
+                        y: backEndPlayers[socket.id].y + yValue * 15,
+                        velX: xValue * 20,
+                        velY: yValue * 20,
+                        damage: 0,
+                        radius: 15,
+                        owner: socket.id,
+                        color: 'yellow',
+                        type: 'taser',
+                    }
+                    io.emit('playSound', {
+                        soundId: "whoosh", 
+                        volume: 0.5, 
+                        rate: 1.2
+                    })
                 break
                 default:
                     console.log("It's the default case!")
@@ -221,6 +252,7 @@ io.on('connection', (socket) => {
             speed: PLAYER_SPEED,
             modSpeed: 0,
             modSpeedTime: 0,
+            meleeAttackTime: 0,
             radius: RADIUS,
             train: {head: null, tail: null, length: 0},
             health: DEFAULT_MAX_HEALTH,
@@ -415,9 +447,18 @@ setInterval(() => {
                 backEndPlayers[id].y += (dy / speedDivisor) * backEndPlayers[id].speed
             }
 
-            // speed control
+            // duration abilities
             if(backEndPlayers[id].modSpeedTime > 0) {
                 backEndPlayers[id].modSpeedTime--
+            }
+            if(backEndPlayers[id].meleeAttackTime > 0) {
+                const casualties = radiusDetection(backEndPlayers[id], backEndPlayers, MELEE_ATTACK_RADIUS)
+                for(const i in casualties) {
+                    console.log("is ",casualties[i]," equal to ",id);
+                    if(casualties[i] == id) continue;
+                    healPlayer(casualties[i], Math.floor(-backEndPlayers[id].attackMult))
+                }
+                backEndPlayers[id].meleeAttackTime--
             }
 
             // border collision
@@ -446,6 +487,15 @@ setInterval(() => {
             if(colProjId != null){
                 if(backEndProjectiles[colProjId].owner == null) return
                 healPlayer(id, Math.floor(-backEndProjectiles[colProjId].damage*backEndPlayers[backEndProjectiles[colProjId].owner].attackMult))
+                
+                if(backEndProjectiles[colProjId].type == 'taser') {
+                    backEndPlayers[id].modSpeed = 0
+                    backEndPlayers[id].modSpeedTime = 120
+                    if(backEndPlayers[id].train.head != null){
+                        blowup(backEndPlayers[id].train, backEndPlayers[id].train.head, false, false)
+                    }
+                }
+                
                 delete backEndProjectiles[colProjId]
                 console.log("collided with projecitle " + colProjId)
             }
@@ -460,7 +510,7 @@ setInterval(() => {
                     const itemX = backEndItems[colId].x
                     const itemY = backEndItems[colId].y
                     blowup(backEndPlayers[otherPlayerId].train, colId)
-                    healPlayer(id, Math.floor(-90*backEndPlayers[otherPlayerId].attackMult))
+                    healPlayer(id, Math.floor(-50*backEndPlayers[otherPlayerId].attackMult))
                     console.log("you blew up on item " + colId)
                     io.emit('spawnParticle', {
                         x: itemX,

@@ -208,6 +208,7 @@ socket.on('updatePlayers', (backEndPlayers) => {
             frontEndPlayers[id].eliminated = backEndPlayer.eliminated
             frontEndPlayers[id].skindex = backEndPlayer.skindex
             frontEndPlayers[id].speed = backEndPlayer.speed
+            frontEndPlayers[id].meleeAttackTime = backEndPlayer.meleeAttackTime
 
             // if it's the client's own player
             if(id === socket.id){
