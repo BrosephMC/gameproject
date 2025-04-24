@@ -2,8 +2,8 @@ const canvas = document.querySelector('canvas')
 const c = canvas.getContext('2d')
 const scoreEl = document.querySelector('#scoreEl')
 
-const CANVAS_WIDTH = 1024
-const CANVAS_HEIGHT = 576
+const CANVAS_WIDTH = 1280
+const CANVAS_HEIGHT = 720
 const devicePixelRatio = window.devicePixelRatio || 1
 canvas.width = CANVAS_WIDTH * devicePixelRatio
 canvas.height = CANVAS_HEIGHT * devicePixelRatio
@@ -13,11 +13,16 @@ const frontEndPlayers = {}
 const frontEndProjectiles = {}
 const frontEndItems = {}
 const particles = {}
+const splashTexts = {}
 let particleId = 0
+let splashTextId = 0
 let frontEndHeaderText = ""
 let readOnlyGameState = "waiting_room"
 
 const socket = io();
+let followPlayer = false
+const ZOOM_SCALE = 1.5
+let client = null
 
 let playerSkins = [] // grabbed from the back end
 
@@ -77,6 +82,17 @@ socket.on('spawnParticle', (particle) => {
     })
 })
 
+socket.on('spawnSplashText', (splashText) => {
+    splashTexts[splashTextId++] = new SplashText({
+        attachedToPlayerId: splashText.attachedToPlayerId,
+        x: splashText.x,
+        y: splashText.y,
+        text: splashText.text,
+        color: splashText.color,
+        lifespan: splashText.lifespan
+    })
+})
+
 socket.on('updateHeaderText', (BackEndHeaderText) => {
     frontEndHeaderText = BackEndHeaderText
 })
@@ -117,8 +133,16 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
     // console.log(frontEndProjectiles)
 })
 
+// let serverTime = 0
+
 // receive update from server
 socket.on('updateItems', (backEndItems) => {
+    // if(time < serverTime) {
+    //     console.warn("Received an old update from the server. Ignoring it.")
+    //     return
+    // }
+    // serverTime = time
+
     for (const id in backEndItems) {
         const backEndItem = backEndItems[id]
 
@@ -131,13 +155,16 @@ socket.on('updateItems', (backEndItems) => {
                 type: backEndItem.type
             })
         } else {
-            frontEndItems[id].x = backEndItem.x
-            frontEndItems[id].y = backEndItem.y
+            // frontEndItems[id].x = backEndItem.x
+            // frontEndItems[id].y = backEndItem.y
+            frontEndItems[id].x += (backEndItem.x-frontEndItems[id].x) * 0.2
+            frontEndItems[id].y += (backEndItem.y-frontEndItems[id].y) * 0.2
             frontEndItems[id].highlighted = backEndItem.highlighted
             if(frontEndItems[id].type != backEndItem.type){
                 frontEndItems[id].type = backEndItem.type
                 frontEndItems[id].updateSprite()
             }
+            console.log(frontEndItems[id].x)
         }
     }
 
@@ -213,6 +240,7 @@ socket.on('updatePlayers', (backEndPlayers) => {
             // if it's the client's own player
             if(id === socket.id){
                 frontEndPlayers[id].isClient = true
+                client = frontEndPlayers[id]
             } else {
                 frontEndPlayers[id].isClient = false
             }
@@ -229,17 +257,44 @@ socket.on('updatePlayers', (backEndPlayers) => {
                 document.querySelector('#usernameForm').style.display = 'block'
             }
 
+            if(frontEndPlayers[id].isClient){
+                client = null
+            }
+
             delete frontEndPlayers[id]
+
         }
     }
 })
 
+let camera = {
+    x: 0,
+    y: 0
+};
+const CAMERA_SMOOTHNESS = 0.2;
+
 let animationId
 function animate() {
+
     animationId = requestAnimationFrame(animate)
-    // c.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    // c.fillRect(0, 0, canvas.width, canvas.height)
+
     c.clearRect(0, 0, canvas.width, canvas.height)
+
+    if(followPlayer && client){
+        c.save();
+        c.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        c.scale(ZOOM_SCALE, ZOOM_SCALE);
+        camera.x += (client.x - camera.x) * CAMERA_SMOOTHNESS;
+        camera.y += (client.y - camera.y) * CAMERA_SMOOTHNESS;
+        c.translate(-camera.x, -camera.y);
+
+        c.beginPath();
+        c.strokeStyle = 'white'
+        c.lineWidth = 1
+        c.rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        c.stroke();
+        c.closePath();
+    }
 
     for(const id in frontEndItems) {
         const frontEndItem = frontEndItems[id]
@@ -270,16 +325,28 @@ function animate() {
     }
 
     for(const id in particles) {
-        const particle = particles[id]
-        particle.draw()
+        particles[id].draw()
+        particles[id].lifespan -= 1;
 
-        // Reduce lifespan
-        particle.lifespan -= 1;
-
-        // Remove particle if its life is over
-        if (particle.lifespan <= 0) {
+        if (particles[id].lifespan <= 0) {
             delete particles[id];
         }
+    }
+
+    for(const id in splashTexts) {
+        const attachedToPlayer = frontEndPlayers[splashTexts[id].attachedToPlayerId]
+        splashTexts[id].x = attachedToPlayer.x
+        splashTexts[id].y = attachedToPlayer.y + 50
+        splashTexts[id].draw()
+        splashTexts[id].lifespan -= 1;
+
+        if (splashTexts[id].lifespan <= 0) {
+            delete splashTexts[id];
+        }
+    }
+
+    if(followPlayer && client){
+        c.restore();
     }
 
     if(readOnlyGameState == "waiting_room"){
@@ -294,6 +361,7 @@ function animate() {
         if(frontEndHeaderText.split(" ")[1] <= 10) {c.fillStyle = 'orange'}
         c.fillText(frontEndHeaderText, CANVAS_WIDTH/2 - (c.measureText(frontEndHeaderText).width / 2), 50)
     }
+
 }
 
 animate()
@@ -315,8 +383,8 @@ document.addEventListener('click', (event) => {
 
     if(readOnlyGameState == "waiting_room") {
         const {top, left} = canvas.getBoundingClientRect()
-        mouseX = event.clientX - left;
-        mouseY = event.clientY - top;
+            mouseX = event.clientX - left;
+            mouseY = event.clientY - top;
 
         for(const id in frontEndButtons){
             if(frontEndButtons[id].hover(mouseX, mouseY)){
@@ -345,8 +413,13 @@ document.addEventListener("mousemove", (event) => {
     if(!frontEndPlayers[socket.id]) return
     
     const {top, left} = canvas.getBoundingClientRect()
-    mouseX = event.clientX - left;
-    mouseY = event.clientY - top;
+    if(followPlayer && client){
+        mouseX = (event.clientX - left - CANVAS_WIDTH / 2) / ZOOM_SCALE + client.x;
+        mouseY = (event.clientY - top - CANVAS_HEIGHT / 2) / ZOOM_SCALE + client.y;
+    } else {
+        mouseX = event.clientX - left;
+        mouseY = event.clientY - top;
+    }
 
     //angle rotation is client-side
     const angle = Math.atan2(
@@ -357,6 +430,16 @@ document.addEventListener("mousemove", (event) => {
 
     socket.emit('moveMouse', {angle, mouseX, mouseY})
 });
+
+document.addEventListener('wheel', (event) => {  
+    if (event.deltaY < 0) {
+      console.log('Scrolled up');
+      followPlayer = true
+    } else {
+      console.log('Scrolled down');
+      followPlayer = false
+    }
+  });
 
 // spawn item debug
 window.addEventListener('keydown', (event) => {
