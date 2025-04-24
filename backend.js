@@ -19,11 +19,11 @@ const backEndPlayers = {}
 const backEndProjectiles = {}
 const backEndItems = {}
 
-const RADIUS = 10
+const PLAYER_RADIUS = 10
 let projectileId = 0
 let ItemObjId = 0
-const CANVAS_WIDTH = 1024
-const CANVAS_HEIGHT = 576
+const CANVAS_WIDTH = 1280
+const CANVAS_HEIGHT = 720
 const TICK = 0.015 // I think the seconds are a little too slow
 const DEFAULT_COUNTDOWN = 3 // 3
 const DEFAULT_LONG_COUNTDOWN = 60 // 60
@@ -37,8 +37,9 @@ const ITEM_CAP_PP_LONG = 30
 let spawnItemTimer = ITEM_SPAWN_DELAY
 const PLAYER_SPEED = 3
 const MELEE_ATTACK_RADIUS = 30
+const ATTACK_MULT_VALUE = 0.5
 
-const testingMode = true;
+const testingMode = false;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -120,8 +121,8 @@ io.on('connection', (socket) => {
                     xValue = Math.cos(backEndPlayers[socket.id].angle)
                     yValue = Math.sin(backEndPlayers[socket.id].angle)
                     backEndProjectiles[projectileId++] = {
-                        x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
-                        y: backEndPlayers[socket.id].y + yValue * 15,
+                        x: backEndPlayers[socket.id].x + xValue * (PLAYER_RADIUS + 5),
+                        y: backEndPlayers[socket.id].y + yValue * (PLAYER_RADIUS + 5),
                         velX: xValue * 20,
                         velY: yValue * 20,
                         damage: 40,
@@ -140,8 +141,8 @@ io.on('connection', (socket) => {
                         xValue = Math.cos(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
                         yValue = Math.sin(backEndPlayers[socket.id].angle + i * 8 * Math.PI / 180)
                         backEndProjectiles[projectileId++] = {
-                            x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
-                            y: backEndPlayers[socket.id].y + yValue * 15,
+                            x: backEndPlayers[socket.id].x + xValue * (PLAYER_RADIUS + 0),
+                            y: backEndPlayers[socket.id].y + yValue * (PLAYER_RADIUS + 0),
                             velX: xValue * 20,
                             velY: yValue * 20,
                             damage: 25,
@@ -158,6 +159,11 @@ io.on('connection', (socket) => {
                     break
                 case 'heal':
                     healPlayer(socket.id, 40)
+                    io.emit('spawnSplashText', {
+                        attachedToPlayerId: socket.id,
+                        text: "▲ Health",
+                        color: "limegreen",
+                    })
                     break
                 case 'bomb':
                     const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
@@ -192,8 +198,8 @@ io.on('connection', (socket) => {
                     xValue = Math.cos(backEndPlayers[socket.id].angle)
                     yValue = Math.sin(backEndPlayers[socket.id].angle)
                     backEndProjectiles[projectileId++] = {
-                        x: backEndPlayers[socket.id].x + xValue * 15, // player's radius is 10
-                        y: backEndPlayers[socket.id].y + yValue * 15,
+                        x: backEndPlayers[socket.id].x + xValue * (PLAYER_RADIUS + 5),
+                        y: backEndPlayers[socket.id].y + yValue * (PLAYER_RADIUS + 5),
                         velX: xValue * 20,
                         velY: yValue * 20,
                         damage: 0,
@@ -208,9 +214,30 @@ io.on('connection', (socket) => {
                         rate: 1.2
                     })
                 break
+                case 'health_increase':
+                    io.emit('spawnSplashText', {
+                        attachedToPlayerId: socket.id,
+                        text: "▼ Max Health",
+                        color: "crimson",
+                    })
+                break
+                case 'attack_mult':
+                    io.emit('spawnSplashText', {
+                        attachedToPlayerId: socket.id,
+                        text: "▼ Attack Mult.",
+                        color: "crimson",
+                    })
+                break
+                case 'weaken':
+                    io.emit('spawnSplashText', {
+                        attachedToPlayerId: socket.id,
+                        text: "▲ Max Health, AttackMult",
+                        color: "limegreen",
+                    })
+                break
                 default:
                     console.log("It's the default case!")
-                    break
+                break
             }
             popItem(backEndPlayers[socket.id].train)
 
@@ -253,7 +280,7 @@ io.on('connection', (socket) => {
             modSpeed: 0,
             modSpeedTime: 0,
             meleeAttackTime: 0,
-            radius: RADIUS,
+            radius: PLAYER_RADIUS,
             train: {head: null, tail: null, length: 0},
             health: DEFAULT_MAX_HEALTH,
             maxHealth: DEFAULT_MAX_HEALTH,
@@ -434,6 +461,8 @@ setInterval(() => {
             let dx = backEndPlayers[id].mouseX - backEndPlayers[id].x
             let dy = backEndPlayers[id].mouseY - backEndPlayers[id].y
             let distance = Math.sqrt(dx * dx + dy * dy)
+            // console.log(distance)
+
 
             let speedDivisor
             if(distance > 20) {
@@ -454,7 +483,6 @@ setInterval(() => {
             if(backEndPlayers[id].meleeAttackTime > 0) {
                 const casualties = radiusDetection(backEndPlayers[id], backEndPlayers, MELEE_ATTACK_RADIUS)
                 for(const i in casualties) {
-                    console.log("is ",casualties[i]," equal to ",id);
                     if(casualties[i] == id) continue;
                     healPlayer(casualties[i], Math.floor(-backEndPlayers[id].attackMult))
                 }
@@ -569,10 +597,10 @@ setInterval(() => {
                         backEndPlayers[id].maxHealth += HEALTH_INCREASE_VALUE
                     } else 
                     if(backEndItems[prevId].type == 'attack_mult') {
-                        backEndPlayers[id].attackMult += 0.5
+                        backEndPlayers[id].attackMult += ATTACK_MULT_VALUE
                     } else 
                     if(backEndItems[prevId].type == 'weaken') {
-                        backEndPlayers[id].attackMult -= 0.5
+                        backEndPlayers[id].attackMult -= ATTACK_MULT_VALUE
                         backEndPlayers[id].maxHealth -= HEALTH_INCREASE_VALUE
                     }
 
@@ -690,6 +718,9 @@ setInterval(() => {
                 backEndPlayers[id].train = {head: null, tail: null, length: 0}
                 backEndPlayers[id].health = DEFAULT_MAX_HEALTH
                 backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
+                backEndPlayers[id].attackMult = 1
+                backEndPlayers[id].modSpeedTime = 0
+                backEndPlayers[id].meleeAttackTime = 0
             }
             for(const id in backEndItems) {delete backEndItems[id]}
             for(const id in backEndProjectiles) {delete backEndProjectiles[id]}
@@ -726,14 +757,34 @@ function appendItem(playerId, itemId) {
     // add health when picking up health_increase
     if(backEndItems[itemId].type == 'health_increase') {
         backEndPlayers[playerId].health += HEALTH_INCREASE_VALUE
+        io.emit('spawnSplashText', {
+            attachedToPlayerId: playerId,
+            text: "▲ Max Health",
+            color: "limegreen",
+        })
     } else
     if(backEndItems[itemId].type == 'clone') {
-        console.log("hi there")
-        console.log("here is the type: ",backEndItems[itemId].type)
-        console.log("here is the tail: ",train.tail)
         backEndItems[itemId].type = (train.tail != null) ? backEndItems[train.tail].type : "dummy"
-        console.log("here is the type: ",backEndItems[itemId].type)
+        io.emit('spawnSplashText', {
+            attachedToPlayerId: playerId,
+            text: "You picked up "+backEndItems[itemId].type,
+        })
+    } else
+    if(backEndItems[itemId].type == 'weaken') {
+        io.emit('spawnSplashText', {
+            attachedToPlayerId: playerId,
+            text: "▼ Max Health, Attack Mult.",
+            color: "crimson",
+        })
+    } else
+    if(backEndItems[itemId].type == 'attack_mult') {
+        io.emit('spawnSplashText', {
+            attachedToPlayerId: playerId,
+            text: "▲ Attack Mult.",
+            color: "limegreen",
+        })
     }
+    
     
     let nextItem = null
     if(otherPlayerId != null) {
