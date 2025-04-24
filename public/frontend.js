@@ -23,23 +23,23 @@ let playerSkins = [] // grabbed from the back end
 
 const frontEndButtons = {
     left_button: new Button({
-        x: CANVAS_WIDTH/2-80-32,
+        x: CANVAS_WIDTH/2-110-32,
         y: CANVAS_HEIGHT-80,
         width: 64,
         height: 64,
         type: "left_button",
     }),
     right_button: new Button({
-        x: CANVAS_WIDTH/2+80-32,
+        x: CANVAS_WIDTH/2+110-32,
         y: CANVAS_HEIGHT-80,
         width: 64,
         height: 64,
         type: "right_button",
     }),
     ready_button: new Button({
-        x: CANVAS_WIDTH/2-32,
+        x: CANVAS_WIDTH/2-64,
         y: CANVAS_HEIGHT-80,
-        width: 64,
+        width: 128,
         height: 64,
         type: "ready_button",
     })
@@ -134,6 +134,10 @@ socket.on('updateItems', (backEndItems) => {
             frontEndItems[id].x = backEndItem.x
             frontEndItems[id].y = backEndItem.y
             frontEndItems[id].highlighted = backEndItem.highlighted
+            if(frontEndItems[id].type != backEndItem.type){
+                frontEndItems[id].type = backEndItem.type
+                frontEndItems[id].updateSprite()
+            }
         }
     }
 
@@ -161,7 +165,7 @@ socket.on('updatePlayers', (backEndPlayers) => {
                 username: backEndPlayer.username,
                 angle: 0,
                 health: 100,
-                maxHealth: 100
+                maxHealth: 100,
             })
 
             document.querySelector('#playerLabels').innerHTML += 
@@ -203,6 +207,8 @@ socket.on('updatePlayers', (backEndPlayers) => {
             frontEndPlayers[id].ready = backEndPlayer.ready
             frontEndPlayers[id].eliminated = backEndPlayer.eliminated
             frontEndPlayers[id].skindex = backEndPlayer.skindex
+            frontEndPlayers[id].speed = backEndPlayer.speed
+            frontEndPlayers[id].meleeAttackTime = backEndPlayer.meleeAttackTime
 
             // if it's the client's own player
             if(id === socket.id){

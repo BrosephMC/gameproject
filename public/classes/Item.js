@@ -7,6 +7,10 @@ class Item {
       this.sprite = new Image()
       this.sprite.src = "assets/images/" + this.type + ".png"
     }
+
+    updateSprite(){
+      this.sprite.src = "assets/images/" + this.type + ".png"
+    }
   
     draw() {
       c.save()
