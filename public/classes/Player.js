@@ -25,7 +25,7 @@ class Player {
     c.font = '12px sans-serif'
     c.fillStyle = 'white'
     if(this.eliminated) {c.fillStyle = 'gray'}
-    if(this.speed == 5) {c.fillStyle = 'aqua'} // fast speed
+    if(this.speed == 5) {c.fillStyle = 'yellow'} // fast speed
     if(this.speed == 0) {c.fillStyle = 'tan'} // slow speed
     c.fillText(this.username, this.x - (c.measureText(this.username).width / 2), this.y + 35)
 
@@ -64,6 +64,9 @@ class Player {
         this.sprite.src = "assets/images/"+playerSkins[this.skindex]+".png"
         c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
       }
+    } else {
+      this.sprite.src = "assets/images/grave.png"
+      c.drawImage(this.sprite, -this.radius, -this.radius, this.radius*2, this.radius*2)
     }
     c.closePath()
 

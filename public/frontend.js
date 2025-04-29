@@ -21,7 +21,8 @@ let readOnlyGameState = "waiting_room"
 
 const socket = io();
 let followPlayer = false
-const ZOOM_SCALE = 1.5
+// const ZOOM_SCALE = 1.5
+let ZOOM_SCALE = 1
 let client = null
 
 let playerSkins = [] // grabbed from the back end
@@ -47,6 +48,13 @@ const frontEndButtons = {
         width: 128,
         height: 64,
         type: "ready_button",
+    }),
+    title_image: new Button({
+        x: CANVAS_WIDTH/2-256/2,
+        y: 70,
+        width: 256,
+        height: 144,
+        type: "titleScreen2",
     })
 }
 
@@ -59,6 +67,33 @@ var sfx = {
     }),
     "whoosh": new Howl({
         src: "assets/sounds/whoosh.mp3",
+    }),
+    "pluck_1": new Howl({
+        src: "assets/sounds/pluck_1.mp3",
+    }),
+    "pluck_2": new Howl({
+        src: "assets/sounds/pluck_2.mp3",
+    }),
+    "pluck_3": new Howl({
+        src: "assets/sounds/pluck_3.mp3",
+    }),
+    "notify_on": new Howl({
+        src: "assets/sounds/notify_on.mp3",
+    }),
+    "hit": new Howl({
+        src: "assets/sounds/hit.mp3",
+    }),
+    "heal": new Howl({
+        src: "assets/sounds/heal.mp3",
+    }),
+    "taser": new Howl({
+        src: "assets/sounds/taser.mp3",
+    }),
+    "speed_boost": new Howl({
+        src: "assets/sounds/speed_boost.mp3",
+    }),
+    "success": new Howl({
+        src: "assets/sounds/success.mp3",
     }),
 }
 
@@ -391,9 +426,11 @@ document.addEventListener('click', (event) => {
                 switch (frontEndButtons[id].type) {
                     case "left_button":
                         socket.emit('updateSkindex', {dir: 1, length: playerSkins.length});
+                        playSound("pluck_1", 0.4, 1)
                     break;
                     case "right_button":
                         socket.emit('updateSkindex', {dir: 0, length: playerSkins.length});
+                        playSound("pluck_1", 0.4, 1)
                     break;
                     case "ready_button":
                         socket.emit('readyUp');
@@ -432,12 +469,14 @@ document.addEventListener("mousemove", (event) => {
 });
 
 document.addEventListener('wheel', (event) => {  
-    if (event.deltaY < 0) {
-      console.log('Scrolled up');
-      followPlayer = true
+    ZOOM_SCALE -= event.deltaY/500
+    ZOOM_SCALE = Math.min(ZOOM_SCALE, 3)
+
+    if (ZOOM_SCALE > 1) {
+        followPlayer = true
     } else {
-      console.log('Scrolled down');
-      followPlayer = false
+        followPlayer = false
+        ZOOM_SCALE = 1
     }
   });
 
