@@ -10,14 +10,14 @@ class Particle {
     }
   
     draw() {
-      if(this.type == 'explosion') {
-        c.lineWidth = 2;
-        c.beginPath();
-        c.strokeStyle = 'white';
-        c.arc(this.x, this.y, 50, 0, Math.PI * 2); // radius manually copied from backend
-        c.stroke();
-        c.closePath();
-      }
+      // if(this.type == 'explosion') {
+      //   c.lineWidth = 2;
+      //   c.beginPath();
+      //   c.strokeStyle = 'white';
+      //   c.arc(this.x, this.y, 50, 0, Math.PI * 2); // radius manually copied from backend
+      //   c.stroke();
+      //   c.closePath();
+      // }
 
       c.drawImage(this.sprite, this.x-this.radius, this.y-this.radius, this.radius*2, this.radius*2)
     }

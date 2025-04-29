@@ -81,9 +81,9 @@ const itemsList = [
 const itemWeightsList = [
     1, // heal
     1, // health_increase
-    1, // bomb
-    1, // rock
-    1, // shotgun
+    2, // bomb
+    2, // rock
+    2, // shotgun
     1, // attack_mult
     1, // speed_boost
     1, // stun
@@ -174,7 +174,7 @@ io.on('connection', (socket) => {
                         x: backEndPlayers[socket.id].x,
                         y: backEndPlayers[socket.id].y,
                         type: 'explosion',
-                        radius: 30,
+                        radius: 55,
                         lifespan: 90
                     })
                     io.emit('playSound', {
@@ -186,6 +186,11 @@ io.on('connection', (socket) => {
                 case 'speed_boost':
                     backEndPlayers[socket.id].modSpeed = 5
                     backEndPlayers[socket.id].modSpeedTime = 180
+                    io.emit('playSound', {
+                        soundId: "speed_boost", 
+                        volume: 0.5, 
+                        rate: 1
+                    })
                 break
                 case 'stun':
                     backEndPlayers[socket.id].modSpeed = 0
@@ -327,11 +332,19 @@ io.on('connection', (socket) => {
         console.log("ready")
         if(currentGameState == GameState.WAITING_ROOM){
             backEndPlayers[socket.id].ready = !backEndPlayers[socket.id].ready
-            io.emit('playSound', {
-                soundId: "pop", 
-                volume: 0.2, 
-                rate: 0.5 + backEndPlayers[socket.id].ready*0.5
-            })
+            if(backEndPlayers[socket.id].ready) {
+                io.emit('playSound', {
+                    soundId: "pluck_3", 
+                    volume: 0.4, 
+                    rate: 1
+                })
+            } else {
+                io.emit('playSound', {
+                    soundId: "pluck_2", 
+                    volume: 0.4, 
+                    rate: 1
+                })
+            }
         }
     })
 
@@ -522,6 +535,11 @@ setInterval(() => {
                     if(backEndPlayers[id].train.head != null){
                         blowup(backEndPlayers[id].train, backEndPlayers[id].train.head, false, false)
                     }
+                    io.emit('playSound', {
+                        soundId: "taser", 
+                        volume: 0.4, 
+                        rate: 1
+                    })
                 }
                 
                 delete backEndProjectiles[colProjId]
@@ -544,7 +562,7 @@ setInterval(() => {
                         x: itemX,
                         y: itemY,
                         type: 'explosion',
-                        radius: 30,
+                        radius: 55,
                         lifespan: 90
                     })
                     io.emit('playSound', {
@@ -553,7 +571,7 @@ setInterval(() => {
                         rate: 1.1
                     })
                     console.log("emitted particle")
-                } else {
+                } else if (!(backEndPlayers[id].modSpeedTime > 0 && backEndPlayers[id].modSpeed == 0)){
                     appendItem(id, colId)
                     // console.log("collided with item " + colId)
                 }
@@ -642,6 +660,11 @@ setInterval(() => {
             backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
             backEndPlayers[lastPlayerId].score++
             currentGameState = GameState.PLAYING_FINISHED
+            io.emit('playSound', {
+                soundId: "success", 
+                volume: 1, 
+                rate: 1
+            })
             countdownTimer = DEFAULT_COUNTDOWN
         } else
         if(testingMode && numAlivePlayers <= 0) {
@@ -696,6 +719,14 @@ setInterval(() => {
     break;
 
     case GameState.PLAYING_COUNTDOWN:
+        if(Math.ceil(countdownTimer) - countdownTimer <= 0.015){
+            io.emit('playSound', {
+                soundId: "notify_on", 
+                volume: 1, 
+                rate: 1
+            })
+        }
+
         countdownTimer -= TICK
 
         if(countdownTimer <= 0 || testingMode) {
@@ -703,6 +734,7 @@ setInterval(() => {
         }
 
         backEndHeaderText = "Starting in... "+Math.ceil(countdownTimer)
+        
 
     break;
 
@@ -720,6 +752,8 @@ setInterval(() => {
                 backEndPlayers[id].maxHealth = DEFAULT_MAX_HEALTH
                 backEndPlayers[id].attackMult = 1
                 backEndPlayers[id].modSpeedTime = 0
+                backEndPlayers[id].modSpeed = 0
+                backEndPlayers[id].speed = PLAYER_SPEED
                 backEndPlayers[id].meleeAttackTime = 0
             }
             for(const id in backEndItems) {delete backEndItems[id]}
@@ -884,8 +918,9 @@ function blowup(train, itemId, init = false, deleteItem = true) {
     if(backEndItems[itemId] != null){
         backEndItems[itemId].attachedToPlayer = null
         backEndItems[itemId].highlighted = false
-        backEndItems[itemId].x += (30 * Math.random()) - 15
-        backEndItems[itemId].y += (30 * Math.random()) - 15
+        const scatter = 40
+        backEndItems[itemId].x += (scatter * Math.random()) - scatter/2
+        backEndItems[itemId].y += (scatter * Math.random()) - scatter/2
     }
     delete train[itemId]
 }
@@ -896,5 +931,18 @@ function healPlayer(playerId, value) {
     backEndPlayers[playerId].health += value
     if(backEndPlayers[playerId].health >= backEndPlayers[playerId].maxHealth) {
         backEndPlayers[playerId].health = backEndPlayers[playerId].maxHealth
+    }
+    if(value < 0){
+        io.emit('playSound', {
+            soundId: "hit", 
+            volume: 0.1, 
+            rate: 1
+        })
+    } else if (value > 0){
+        io.emit('playSound', {
+            soundId: "heal", 
+            volume: 0.5, 
+            rate: 1
+        })
     }
 }
