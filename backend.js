@@ -653,7 +653,7 @@ setInterval(() => {
                 }
             }
 
-            if(backEndPlayers[id].pickupGauge > 20 && backEndPlayers[id].train.head) {
+            if(backEndPlayers[id].pickupGauge > 40 && backEndPlayers[id].train.head) {
                 // self destruct
                 blowup(backEndPlayers[id].train, backEndPlayers[id].train.head)
                 const casualties = radiusDetection(backEndPlayers[id], backEndPlayers, 50)
