@@ -560,11 +560,8 @@ setInterval(() => {
                 if(backEndItems[colId].type == 'bomb' && otherPlayerId != null && otherPlayerId != id) {
                     const itemX = backEndItems[colId].x
                     const itemY = backEndItems[colId].y
-                    const casualties = radiusDetection(backEndPlayers[id], backEndPlayers, 50)
-                    for(const i in casualties) {
-                        healPlayer(casualties[i], Math.floor(-40*backEndPlayers[id].attackMult))
-                    }
                     blowup(backEndPlayers[otherPlayerId].train, colId)
+                    healPlayer(id, Math.floor(-50*backEndPlayers[otherPlayerId].attackMult))
                     console.log("you blew up on item " + colId)
                     io.emit('spawnParticle', {
                         x: itemX,
