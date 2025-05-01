@@ -1,5 +1,5 @@
 class Button {
-    constructor({x, y, width, height, type}) {
+    constructor({x, y, width, height, type = 'dummy'}) {
       this.x = x
       this.y = y
       this.width = width
