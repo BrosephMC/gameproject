@@ -39,7 +39,7 @@ const PLAYER_SPEED = 3
 const MELEE_ATTACK_RADIUS = 30
 const ATTACK_MULT_VALUE = 0.5
 
-const testingMode = true;
+const testingMode = false;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -703,6 +703,13 @@ setInterval(() => {
                     volume: 1, 
                     rate: 1
                 })
+                io.emit('spawnParticle', {
+                    x: CANVAS_WIDTH/2,
+                    y: CANVAS_HEIGHT/2,
+                    type: 'go!',
+                    radius: 60,
+                    lifespan: 40
+                })
             } else {
                 backEndHeaderText = "Final players died at the same time. Nobody won!"
                 io.emit('playSound', {
@@ -772,12 +779,42 @@ setInterval(() => {
                 volume: 1, 
                 rate: 1
             })
+            if (Math.ceil(countdownTimer) == 2) {
+                io.emit('spawnParticle', {
+                    x: CANVAS_WIDTH/2,
+                    y: CANVAS_HEIGHT/2,
+                    type: 'ready',
+                    radius: 60,
+                    lifespan: 60
+                })
+            } else
+            if (Math.ceil(countdownTimer) == 1) {
+                io.emit('spawnParticle', {
+                    x: CANVAS_WIDTH/2,
+                    y: CANVAS_HEIGHT/2,
+                    type: 'set',
+                    radius: 60,
+                    lifespan: 60
+                })
+            }
         }
 
         countdownTimer -= TICK
 
         if(countdownTimer <= 0 || testingMode) {
             currentGameState = GameState.PLAYING
+            io.emit('playSound', {
+                soundId: "notify_on", 
+                volume: 1, 
+                rate: 1.5
+            })
+            io.emit('spawnParticle', {
+                x: CANVAS_WIDTH/2,
+                y: CANVAS_HEIGHT/2,
+                type: 'go!',
+                radius: 60,
+                lifespan: 40
+            })
         }
 
         backEndHeaderText = "Starting in... "+Math.ceil(countdownTimer)

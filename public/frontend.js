@@ -97,6 +97,12 @@ var sfx = {
     }),
 }
 
+const backgroundMusic = new Howl({
+    src: ['assets/sounds/little_jazzy_song.mp3'],
+    loop: true,
+    volume: 0.4
+  });
+
 function playSound(soundId, volume, rate){
     sfx[soundId].volume(volume)
     sfx[soundId].rate(rate)
