@@ -10,9 +10,7 @@ class Button {
     }
   
     draw() {
-      if(this.sprite){
-        c.drawImage(this.sprite, this.x, this.y, this.width, this.height)
-      }
+      c.drawImage(this.sprite, this.x, this.y, this.width, this.height)
     }
 
     hover(mouseX, mouseY) {

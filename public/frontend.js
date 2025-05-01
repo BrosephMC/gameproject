@@ -54,7 +54,7 @@ const frontEndButtons = {
         y: 70, // changed later in code with bounce
         width: 384,
         height: 216,
-        type: "titleScreen2",
+        type: "title_image",
     })
 }
 
