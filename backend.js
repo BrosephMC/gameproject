@@ -26,7 +26,7 @@ const CANVAS_WIDTH = 1280
 const CANVAS_HEIGHT = 720
 const TICK = 0.015 // I think the seconds are a little too slow
 const DEFAULT_COUNTDOWN = 3 // 3
-const DEFAULT_LONG_COUNTDOWN = 60 // 60
+const DEFAULT_LONG_COUNTDOWN = 120 // 120
 const SPACING = 30
 const HEALTH_INCREASE_VALUE = 25
 const DEFAULT_MAX_HEALTH = 100 // 100
@@ -39,7 +39,7 @@ const PLAYER_SPEED = 3
 const MELEE_ATTACK_RADIUS = 30
 const ATTACK_MULT_VALUE = 0.5
 
-const testingMode = false;
+const testingMode = true;
 
 const GameState = Object.freeze({
     WAITING_ROOM: "waiting_room",
@@ -57,10 +57,11 @@ const playerSkins = [
     "TRI_blueviolet",
     "TRI_white",
     "player_test",
-    "ratPlayer",
-    "NewDuck",
-    "rocketPlayer",
+    "bear",
+    "frog",
     "hamster",
+    "mouse",
+    "rocketPlayer",
 ]
 
 const itemsList = [
@@ -128,7 +129,8 @@ io.on('connection', (socket) => {
                         damage: 40,
                         radius: 15,
                         owner: socket.id,
-                        color: 'white'
+                        color: 'white',
+                        type: 'rock'
                     }
                     io.emit('playSound', {
                         soundId: "whoosh", 
@@ -148,7 +150,8 @@ io.on('connection', (socket) => {
                             damage: 25,
                             radius: 10,
                             owner: socket.id,
-                            color: 'lightgray'
+                            color: 'lightgray',
+                            type: 'dummy'
                         }
                     }
                     io.emit('playSound', {
@@ -293,6 +296,7 @@ io.on('connection', (socket) => {
             skindex: Math.floor(Math.random() * playerSkins.length),
             ready: false,
             attackMult: 1,
+            pickupGauge: 0,
         }
 
         // initCanvas
@@ -444,11 +448,12 @@ setInterval(() => {
 
             backEndProjectiles[id].velX *= 0.96
             backEndProjectiles[id].velY *= 0.96
+            backEndProjectiles[id].angle = Math.sqrt(backEndProjectiles[id].velX * backEndProjectiles[id].velX + backEndProjectiles[id].velY * backEndProjectiles[id].velY);
+
             if(Math.abs(backEndProjectiles[id].velX) <= 0.1 && Math.abs(backEndProjectiles[id].velY) <= 0.1) delete backEndProjectiles[id]
         }
 
         let numAlivePlayers = 0
-        let lastPlayerId
 
         // update player movement
         for(const id in backEndPlayers) {
@@ -555,8 +560,11 @@ setInterval(() => {
                 if(backEndItems[colId].type == 'bomb' && otherPlayerId != null && otherPlayerId != id) {
                     const itemX = backEndItems[colId].x
                     const itemY = backEndItems[colId].y
+                    const casualties = radiusDetection(backEndPlayers[socket.id], backEndPlayers, 50)
+                    for(const i in casualties) {
+                        healPlayer(casualties[i], Math.floor(-40*backEndPlayers[socket.id].attackMult))
+                    }
                     blowup(backEndPlayers[otherPlayerId].train, colId)
-                    healPlayer(id, Math.floor(-50*backEndPlayers[otherPlayerId].attackMult))
                     console.log("you blew up on item " + colId)
                     io.emit('spawnParticle', {
                         x: itemX,
@@ -645,26 +653,65 @@ setInterval(() => {
                 }
             }
 
+            if(backEndPlayers[id].pickupGauge > 20 && backEndPlayers[id].train.head) {
+                // self destruct
+                blowup(backEndPlayers[id].train, backEndPlayers[id].train.head)
+                const casualties = radiusDetection(backEndPlayers[id], backEndPlayers, 50)
+                for(const i in casualties) {
+                    healPlayer(casualties[i], -40)
+                }
+                console.log("you blew up because you stole items too quickly")
+                io.emit('spawnParticle', {
+                    x: backEndPlayers[id].x,
+                    y: backEndPlayers[id].y,
+                    type: 'explosion',
+                    radius: 55,
+                    lifespan: 90
+                })
+                io.emit('playSound', {
+                    soundId: "explosion", 
+                    volume: 1, 
+                    rate: 1.1
+                })
+                console.log("emitted particle")
+                backEndPlayers[id].pickupGauge = 0
+            }
+            backEndPlayers[id].pickupGauge = Math.max(backEndPlayers[id].pickupGauge-1, 0)
+
             // clamp health if maxHealth is removed
             if(backEndPlayers[id].health >= backEndPlayers[id].maxHealth) {
                 backEndPlayers[id].health = backEndPlayers[id].maxHealth
             }
             // console.log(backEndPlayers[id].train)
-
-            lastPlayerId = id
         }
 
         backEndHeaderText = "";
 
         if(!testingMode && numAlivePlayers <= 1) {
-            backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
-            backEndPlayers[lastPlayerId].score++
+            let lastPlayerId
+            for(const id in backEndPlayers) {
+                if (!backEndPlayers[id].eliminated) {
+                    lastPlayerId = id
+                    break
+                }
+            }
+            if(lastPlayerId) {
+                backEndHeaderText = backEndPlayers[lastPlayerId].username+" won the game!"
+                backEndPlayers[lastPlayerId].score++
+                io.emit('playSound', {
+                    soundId: "success", 
+                    volume: 1, 
+                    rate: 1
+                })
+            } else {
+                backEndHeaderText = "Final players died at the same time. Nobody won!"
+                io.emit('playSound', {
+                    soundId: "success", 
+                    volume: 1, 
+                    rate: 0.7
+                })
+            }
             currentGameState = GameState.PLAYING_FINISHED
-            io.emit('playSound', {
-                soundId: "success", 
-                volume: 1, 
-                rate: 1
-            })
             countdownTimer = DEFAULT_COUNTDOWN
         } else
         if(testingMode && numAlivePlayers <= 0) {
@@ -677,8 +724,8 @@ setInterval(() => {
         let i = 0
         let readys = 0
         for(const id in backEndPlayers) {
-            backEndPlayers[id].x = 100 + 100 * Math.floor(i / 5)
-            backEndPlayers[id].y = 100 + 100 * (i % 5)
+            backEndPlayers[id].x = 100 + 100 * Math.floor(i / 6)
+            backEndPlayers[id].y = 100 + 100 * (i % 6)
             i++
             if(backEndPlayers[id].ready) {readys++}
         }
@@ -787,6 +834,8 @@ function appendItem(playerId, itemId) {
     const otherPlayerId = backEndItems[itemId].attachedToPlayer
     if(otherPlayerId == playerId) return
     const train = backEndPlayers[playerId].train
+
+    backEndPlayers[playerId].pickupGauge+=2
 
     // add health when picking up health_increase
     if(backEndItems[itemId].type == 'health_increase') {

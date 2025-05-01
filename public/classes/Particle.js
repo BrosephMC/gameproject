@@ -1,5 +1,5 @@
 class Particle {
-    constructor({x, y, radius = 10, type = 'dummy', lifespan = 120}) {
+    constructor({x, y, startTime, radius = 10, type = 'dummy', lifespan = 120}) {
       this.x = x
       this.y = y
       this.radius = radius
@@ -7,6 +7,7 @@ class Particle {
       this.sprite = new Image()
       this.sprite.src = "assets/images/" + this.type + ".png"
       this.lifespan = lifespan
+      this.startTime = startTime
     }
   
     draw() {

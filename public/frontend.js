@@ -50,10 +50,10 @@ const frontEndButtons = {
         type: "ready_button",
     }),
     title_image: new Button({
-        x: CANVAS_WIDTH/2-256/2,
-        y: 70,
-        width: 256,
-        height: 144,
+        x: CANVAS_WIDTH/2-384/2,
+        y: 70, // changed later in code with bounce
+        width: 384,
+        height: 216,
         type: "titleScreen2",
     })
 }
@@ -113,7 +113,8 @@ socket.on('spawnParticle', (particle) => {
         y: particle.y,
         radius: particle.radius,
         type: particle.type,
-        lifespan: particle.lifespan
+        lifespan: particle.lifespan,
+        startTime: Date.now()
     })
 })
 
@@ -124,7 +125,8 @@ socket.on('spawnSplashText', (splashText) => {
         y: splashText.y,
         text: splashText.text,
         color: splashText.color,
-        lifespan: splashText.lifespan
+        lifespan: splashText.lifespan,
+        startTime: Date.now()
     })
 })
 
@@ -149,13 +151,16 @@ socket.on('updateProjectiles', (backEndProjectiles) => {
         if (!frontEndProjectiles[id]) {
             frontEndProjectiles[id] = new Projectile({
                 x: backEndProjectile.x, 
-                y: backEndProjectile.y, 
+                y: backEndProjectile.y,
+                angle: backEndProjectile.angle,
                 radius: backEndProjectile.radius,
                 color: backEndProjectile.color, 
+                type: backEndProjectile.type
             })
         } else {
             frontEndProjectiles[id].x = backEndProjectile.x
             frontEndProjectiles[id].y = backEndProjectile.y
+            frontEndProjectiles[id].angle = backEndProjectile.angle
         }
     }
 
@@ -199,7 +204,7 @@ socket.on('updateItems', (backEndItems) => {
                 frontEndItems[id].type = backEndItem.type
                 frontEndItems[id].updateSprite()
             }
-            console.log(frontEndItems[id].x)
+            // console.log(frontEndItems[id].x)
         }
     }
 
@@ -361,23 +366,24 @@ function animate() {
 
     for(const id in particles) {
         particles[id].draw()
-        particles[id].lifespan -= 1;
 
-        if (particles[id].lifespan <= 0) {
+        if (Date.now() - particles[id].startTime >= particles[id].lifespan/60*1000) {
             delete particles[id];
         }
     }
 
     for(const id in splashTexts) {
         const attachedToPlayer = frontEndPlayers[splashTexts[id].attachedToPlayerId]
-        splashTexts[id].x = attachedToPlayer.x
-        splashTexts[id].y = attachedToPlayer.y + 50
+        if(attachedToPlayer){
+            splashTexts[id].x = attachedToPlayer.x
+            splashTexts[id].y = attachedToPlayer.y + 50
+        }
         splashTexts[id].draw()
-        splashTexts[id].lifespan -= 1;
 
-        if (splashTexts[id].lifespan <= 0) {
+        if (Date.now() - splashTexts[id].startTime >= splashTexts[id].lifespan/60*1000) {
             delete splashTexts[id];
         }
+        
     }
 
     if(followPlayer && client){
@@ -385,6 +391,8 @@ function animate() {
     }
 
     if(readOnlyGameState == "waiting_room"){
+        const pulse = 80 + Math.sin(Date.now() / 500) * 10;
+        frontEndButtons["title_image"].y = pulse
         for(const id in frontEndButtons) {
             frontEndButtons[id].draw()
         }
@@ -469,7 +477,7 @@ document.addEventListener("mousemove", (event) => {
 });
 
 document.addEventListener('wheel', (event) => {  
-    ZOOM_SCALE -= event.deltaY/500
+    ZOOM_SCALE -= event.deltaY/250
     ZOOM_SCALE = Math.min(ZOOM_SCALE, 3)
 
     if (ZOOM_SCALE > 1) {
